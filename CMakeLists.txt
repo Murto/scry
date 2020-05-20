@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.13)
+project(initregex LANGUAGES CXX)
+add_subdirectory(src)
+include_directories(${PROJECT_SOURCE_DIR}/include)
+install(TARGETS initregex DESTINATION lib)
+install(FILES initregex DESTINATION include)
