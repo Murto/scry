@@ -36,6 +36,8 @@ private:
     std::vector<simple_expr> exprs;
     bool r_anchor;
   };
+
+  regex_expr expr;
 };
 
 } // namespace initregex
