@@ -1,0 +1,5 @@
+include_directories(${PROJECT_SOURCE_DIR}/include)
+link_directories(${PROJECT_SOURCE_DIR}/build/src)
+#target_link_libraries(initregex PUBLIC ${PROJECT_SOURCE_DIR}/build/src/libinitregex.so)
+add_executable(test test.cpp)
+target_link_libraries(test initregex)
