@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace initregex {
 
@@ -14,7 +15,27 @@ public:
   regex(std::string &&pattern);
 
 private:
-  std::string pattern;
+  class simple_expr {
+
+  public:
+    simple_expr(char c, bool dupl);
+
+  private:
+    char c;
+    bool dupl;
+  };
+
+  class regex_expr {
+
+  public:
+    regex_expr(bool l_anchor, const std::vector<simple_expr> &exprs,
+               bool r_anchor);
+
+  private:
+    bool l_anchor;
+    std::vector<simple_expr> exprs;
+    bool r_anchor;
+  };
 };
 
 } // namespace initregex
