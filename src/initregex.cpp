@@ -32,10 +32,14 @@ static regex::regex_expr parse_regex_expr(it_type begin, it_type end) {
     ++begin;
   }
   std::vector<regex::simple_expr> exprs;
-  while (begin != end && *begin != '$') {
-    auto [expr, it] = parse_simple_expr(begin, end);
-    exprs.push_back(expr);
-    begin = it;
+  if (begin != end) {
+    while (begin != end && *begin != '$') {
+      auto [expr, it] = parse_simple_expr(begin, end);
+      exprs.push_back(expr);
+      begin = it;
+    }
+  } else if (!l_anchor) {
+    throw std::runtime_error{"Expected simple expression"};
   }
   auto r_anchor = false;
   if (begin != end) {
@@ -62,5 +66,11 @@ regex::regex_expr::regex_expr(bool l_anchor,
     : l_anchor{l_anchor}, exprs{exprs}, r_anchor{r_anchor} {}
 
 regex::simple_expr::simple_expr(char c, bool dupl) : c{c}, dupl{dupl} {}
+
+bool match_results::ready() noexcept { return is_ready; }
+
+bool match_results::empty() noexcept { return !match.has_value(); }
+
+std::string::size_type match_results::length() { return match->size(); }
 
 } // namespace initregex
