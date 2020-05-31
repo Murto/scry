@@ -69,12 +69,8 @@ bool regex_match(it_type begin, it_type end, match_results m, regex r) {
   return false;
 }
 
-bool regex_match(const char *s, regex r);
-
-bool regex_match(const char *s, regex r);
-
 bool regex_match(const std::string &s, regex r);
 
-bool regex_match(const std::string &s, regex r);
+bool regex_match(const std::string &s, match_results m, regex r);
 
 } // namespace initregex
