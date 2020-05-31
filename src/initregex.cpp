@@ -73,4 +73,12 @@ bool match_results::empty() noexcept { return !match.has_value(); }
 
 std::string::size_type match_results::length() { return match->size(); }
 
+bool regex_match(const std::string &s, regex r) {
+  return regex_match(s.begin(), s.end(), r);
+}
+
+bool regex_match(const std::string &s, match_results m, regex r) {
+  return regex_match(s.begin(), s.end(), m, r);
+}
+
 } // namespace initregex
