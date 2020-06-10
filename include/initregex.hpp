@@ -20,9 +20,19 @@ public:
   }
 
 private:
+  struct pair_hash {
+
+    template <typename type_1, typename type_2>
+    std::size_t operator()(const std::pair<type_1, type_2> &key) const {
+      auto h1 = std::hash<type_1>{}(key.first);
+      auto h2 = std::hash<type_2>{}(key.second);
+      return h1 ^ (h2 << 1);
+    }
+  };
+
   std::unordered_set<int> initial_states;
   std::unordered_set<int> accepting_states;
-  std::unordered_map<std::pair<symbol_type, int>, int> transitions;
+  std::unordered_map<std::pair<symbol_type, int>, int, pair_hash> transitions;
   std::unordered_set<int> states;
 };
 
@@ -34,6 +44,9 @@ public:
   regex(const std::string &pattern);
 
   regex(std::string &&pattern);
+
+private:
+  nfa<char> accepter;
 };
 
 class simple_expr {

@@ -4,12 +4,6 @@
 
 namespace initregex {
 
-regex::regex(char *pattern) : regex(std::move(std::string(pattern))) {}
-
-regex::regex(const std::string &pattern) {}
-
-regex::regex(std::string &&pattern) {}
-
 template <typename it_type>
 static std::pair<simple_expr, it_type> parse_simple_expr(it_type begin,
                                                          it_type end) {
@@ -57,6 +51,16 @@ static regex_expr parse_regex_expr(it_type begin, it_type end) {
   }
   return {l_anchor, exprs, r_anchor};
 }
+
+nfa<char> expr_to_nfa(const regex_expr &expr) { return {}; }
+
+regex::regex(char *pattern) : regex(std::move(std::string(pattern))) {}
+
+regex::regex(const std::string &pattern)
+    : accepter{expr_to_nfa(parse_regex_expr(pattern.begin(), pattern.end()))} {}
+
+regex::regex(std::string &&pattern)
+    : accepter{expr_to_nfa(parse_regex_expr(pattern.begin(), pattern.end()))} {}
 
 regex_expr::regex_expr(bool l_anchor, const std::vector<simple_expr> &exprs,
                        bool r_anchor)
