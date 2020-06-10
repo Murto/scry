@@ -4,9 +4,15 @@
 
 namespace initregex {
 
+regex::regex(char *pattern) : regex(std::move(std::string(pattern))) {}
+
+regex::regex(const std::string &pattern) {}
+
+regex::regex(std::string &&pattern) {}
+
 template <typename it_type>
-static std::pair<regex::simple_expr, it_type> parse_simple_expr(it_type begin,
-                                                                it_type end) {
+static std::pair<simple_expr, it_type> parse_simple_expr(it_type begin,
+                                                         it_type end) {
   it_type it = begin;
   if (*it == '*' || *it == '^' || *it == '$') {
     throw std::runtime_error{"Unexpected token"};
@@ -22,7 +28,7 @@ static std::pair<regex::simple_expr, it_type> parse_simple_expr(it_type begin,
 }
 
 template <typename it_type>
-static regex::regex_expr parse_regex_expr(it_type begin, it_type end) {
+static regex_expr parse_regex_expr(it_type begin, it_type end) {
   if (begin == end) {
     throw std::runtime_error{"Unexpected end of input"};
   }
@@ -31,7 +37,7 @@ static regex::regex_expr parse_regex_expr(it_type begin, it_type end) {
     l_anchor = true;
     ++begin;
   }
-  std::vector<regex::simple_expr> exprs;
+  std::vector<simple_expr> exprs;
   if (begin != end) {
     while (begin != end && *begin != '$') {
       auto [expr, it] = parse_simple_expr(begin, end);
@@ -52,20 +58,11 @@ static regex::regex_expr parse_regex_expr(it_type begin, it_type end) {
   return {l_anchor, exprs, r_anchor};
 }
 
-regex::regex(char *pattern) : regex(std::move(std::string(pattern))) {}
-
-regex::regex(const std::string &pattern)
-    : expr{parse_regex_expr(std::begin(pattern), std::end(pattern))} {}
-
-regex::regex(std::string &&pattern)
-    : expr{parse_regex_expr(std::begin(pattern), std::end(pattern))} {}
-
-regex::regex_expr::regex_expr(bool l_anchor,
-                              const std::vector<simple_expr> &exprs,
-                              bool r_anchor)
+regex_expr::regex_expr(bool l_anchor, const std::vector<simple_expr> &exprs,
+                       bool r_anchor)
     : l_anchor{l_anchor}, exprs{exprs}, r_anchor{r_anchor} {}
 
-regex::simple_expr::simple_expr(char c, bool dupl) : c{c}, dupl{dupl} {}
+simple_expr::simple_expr(char c, bool dupl) : c{c}, dupl{dupl} {}
 
 bool match_results::ready() noexcept { return is_ready; }
 
