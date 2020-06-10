@@ -8,8 +8,6 @@ namespace initregex {
 
 class regex {
 
-  friend class match_visitor;
-
 public:
   regex(char *pattern);
 
@@ -59,22 +57,6 @@ public:
 private:
   bool is_ready;
   std::optional<std::string> match;
-};
-
-class match_visitor {
-
-public:
-  template <typename type> match_results visit(const type &r) {
-    throw std::runtime_error{"Unsupported type"};
-  }
-
-  match_results visit(const regex::simple_expr &r) {
-    throw std::runtime_error{"Unimplemented"};
-  }
-
-  match_results visit(const regex::regex_expr &r) {
-    throw std::runtime_error{"Unimplemented"};
-  }
 };
 
 template <typename it_type>
