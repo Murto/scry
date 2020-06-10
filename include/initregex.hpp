@@ -2,9 +2,29 @@
 
 #include <optional>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace initregex {
+
+template <typename symbol_type> class nfa {
+
+public:
+  void add_initial_state(int state) noexcept { initial_states.insert(state); }
+  void add_accepting_state(int state) noexcept {
+    accepting_states.insert(state);
+  }
+  void add_transition(symbol_type symbol, int from, int to) noexcept {
+    transitions[{symbol, from}] = to;
+  }
+
+private:
+  std::unordered_set<int> initial_states;
+  std::unordered_set<int> accepting_states;
+  std::unordered_map<std::pair<symbol_type, int>, int> transitions;
+  std::unordered_set<int> states;
+};
 
 class regex {
 
