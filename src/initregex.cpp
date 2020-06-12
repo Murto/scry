@@ -18,7 +18,11 @@ static std::pair<simple_expr, it_type> parse_simple_expr(it_type begin,
     dupl = true;
     ++it;
   }
-  return {{c, dupl}, it};
+  if (c == '.') {
+    return {{any_char_type{}, dupl}, it};
+  } else {
+    return {{c, dupl}, it};
+  }
 }
 
 template <typename it_type>
@@ -70,7 +74,7 @@ regex_expr::regex_expr(bool l_anchor, const std::vector<simple_expr> &exprs,
                        bool r_anchor)
     : l_anchor{l_anchor}, exprs{exprs}, r_anchor{r_anchor} {}
 
-simple_expr::simple_expr(char c, bool dupl) : c{c}, dupl{dupl} {}
+simple_expr::simple_expr(value_type c, bool dupl) : c{c}, dupl{dupl} {}
 
 bool match_results::ready() noexcept { return is_ready; }
 

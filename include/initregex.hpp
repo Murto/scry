@@ -138,10 +138,12 @@ class simple_expr {
   template <typename T> friend class nfa_visitor;
 
 public:
-  simple_expr(char c, bool dupl);
+  using value_type = std::variant<char, any_char_type>;
+
+  simple_expr(value_type c, bool dupl);
 
 private:
-  std::variant<char, any_char_type> c;
+  value_type c;
   bool dupl;
 
   template <typename visitor_type> auto accept(visitor_type &visitor) const {
