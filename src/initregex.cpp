@@ -23,15 +23,18 @@ static std::pair<char, it_type> parse_quoted_char(it_type it, it_type end) {
 template <typename it_type>
 static std::pair<simple_expr, it_type> parse_simple_expr(it_type it,
                                                          it_type end) {
+  static std::unordered_set<char> invalid{'^', '.', '*', '[', '$', '\\'};
   if (*it == '*' || *it == '^' || *it == '$') {
     throw std::runtime_error{"Unexpected token"};
   }
   char c;
   if (*it == '\\') {
     std::tie(c, it) = parse_quoted_char(it, end);
-  } else {
+  } else if (invalid.find(*it) == invalid.end()) {
     c = *it;
     ++it;
+  } else {
+    throw std::runtime_error{"Unexpected token"};
   }
   auto dupl = false;
   if (*it == '*') {
