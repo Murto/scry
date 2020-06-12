@@ -1,33 +1,56 @@
 #pragma once
 
 #include <algorithm>
+#include <iostream>
 #include <iterator>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 namespace initregex {
 
+template <typename... types> struct overloaded : types... {
+  using types::operator()...;
+};
+
+template <typename... types> overloaded(types...)->overloaded<types...>;
+
 template <typename symbol_type> class nfa {
 
 public:
+  struct any_type {};
+  struct epsilon_type {};
+
+  using transition_symbol_type =
+      std::variant<symbol_type, any_type, epsilon_type>;
+
+  constexpr static any_type ANY{};
+  constexpr static epsilon_type EPSILON{};
+
   void add_initial_state(int state) noexcept { initial_states.insert(state); }
   void add_accepting_state(int state) noexcept {
     accepting_states.insert(state);
   }
-  void add_transition(symbol_type symbol, int from, int to) noexcept {
-    transitions[{symbol, from}].insert(to);
-  }
-
-  void add_transition(int from, int to) noexcept {
-    epsilon_transitions[from].insert(to);
+  void add_transition(transition_symbol_type symbol, int from,
+                      int to) noexcept {
+    std::visit(overloaded{[this, from, to](any_type) {
+                            any_transitions[from].insert(to);
+                          },
+                          [this, from, to](epsilon_type) {
+                            epsilon_transitions[from].insert(to);
+                          },
+                          [this, from, to](symbol_type c) {
+                            transitions[{c, from}].insert(to);
+                          }},
+               symbol);
   }
 
   template <typename it_type>
   bool accepts(it_type begin, it_type end) const noexcept {
-    std::unordered_set<int> states = initial_states;
+    std::unordered_set<int> states = epsilonify(initial_states);
     for (auto it = begin; it != end; ++it) {
       states = next_states(*it, states);
     }
@@ -56,6 +79,7 @@ private:
                      pair_hash>
       transitions;
   std::unordered_map<int, std::unordered_set<int>> epsilon_transitions;
+  std::unordered_map<int, std::unordered_set<int>> any_transitions;
   std::unordered_set<int> states;
 
   std::unordered_set<int>
@@ -63,7 +87,7 @@ private:
     auto epsilonified = states;
     for (auto state : states) {
       if (epsilon_transitions.find(state) != epsilon_transitions.end()) {
-        auto reachable = epsilonify(epsilon_transitions.at(state));
+        auto reachable = epsilon_transitions.at(state);
         epsilonified.insert(reachable.begin(), reachable.end());
       }
     }
@@ -77,13 +101,17 @@ private:
   std::unordered_set<int>
   next_states(symbol_type symbol, const std::unordered_set<int> &states) const {
     std::unordered_set<int> next;
-    for (auto state : epsilonify(states)) {
+    for (auto state : states) {
       if (transitions.find({symbol, state}) != transitions.end()) {
         auto to_states = transitions.at({symbol, state});
         next.insert(to_states.begin(), to_states.end());
       }
+      if (any_transitions.find(state) != any_transitions.end()) {
+        auto to_states = any_transitions.at(state);
+        next.insert(to_states.begin(), to_states.end());
+      }
     }
-    return next;
+    return epsilonify(next);
   }
 };
 
@@ -140,13 +168,20 @@ private:
 template <typename symbol_type> class nfa_visitor {
 
 public:
-  nfa<symbol_type> acceptor;
+  using nfa_type = nfa<symbol_type>;
 
-  nfa_visitor() { acceptor.add_initial_state(id); }
+  nfa_type acceptor;
 
   void visit(const regex_expr &expr) {
+    acceptor.add_initial_state(id);
+    if (!expr.l_anchor) {
+      acceptor.add_transition(nfa_type::ANY, id, id);
+    }
     for (const auto &simple : expr.exprs) {
       simple.accept(*this);
+    }
+    if (!expr.r_anchor) {
+      acceptor.add_transition(nfa_type::ANY, id, id);
     }
     acceptor.add_accepting_state(id);
   }
@@ -155,7 +190,7 @@ public:
     int state_id = next_id();
     if (expr.dupl) {
       acceptor.add_transition(expr.c, prev_id, prev_id);
-      acceptor.add_transition(prev_id, state_id);
+      acceptor.add_transition(nfa_type::EPSILON, prev_id, state_id);
     } else {
       acceptor.add_transition(expr.c, prev_id, state_id);
     }
