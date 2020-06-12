@@ -131,6 +131,8 @@ private:
   nfa<char> acceptor;
 };
 
+struct any_char_type {};
+
 class simple_expr {
 
   template <typename T> friend class nfa_visitor;
@@ -139,7 +141,7 @@ public:
   simple_expr(char c, bool dupl);
 
 private:
-  char c;
+  std::variant<char, any_char_type> c;
   bool dupl;
 
   template <typename visitor_type> auto accept(visitor_type &visitor) const {
@@ -188,12 +190,26 @@ public:
 
   void visit(const simple_expr &expr) {
     int state_id = next_id();
-    if (expr.dupl) {
-      acceptor.add_transition(expr.c, prev_id, prev_id);
-      acceptor.add_transition(nfa_type::EPSILON, prev_id, state_id);
-    } else {
-      acceptor.add_transition(expr.c, prev_id, state_id);
-    }
+    bool dupl = expr.dupl;
+    std::visit(
+        overloaded{
+            [this, dupl, state_id](char c) {
+              if (dupl) {
+                acceptor.add_transition(c, prev_id, prev_id);
+                acceptor.add_transition(nfa_type::EPSILON, prev_id, state_id);
+              } else {
+                acceptor.add_transition(c, prev_id, state_id);
+              }
+            },
+            [this, dupl, state_id](any_char_type) {
+              if (dupl) {
+                acceptor.add_transition(nfa_type::ANY, prev_id, prev_id);
+                acceptor.add_transition(nfa_type::EPSILON, prev_id, state_id);
+              } else {
+                acceptor.add_transition(nfa_type::ANY, prev_id, state_id);
+              }
+            }},
+        expr.c);
   }
 
 private:
