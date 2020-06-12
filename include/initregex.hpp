@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -23,6 +25,20 @@ public:
     epsilon_transitions[from].insert(to);
   }
 
+  template <typename it_type>
+  bool accepts(it_type begin, it_type end) const noexcept {
+    std::unordered_set<int> states = initial_states;
+    for (auto it = begin; it != end; ++it) {
+      states = next_states(*it, states);
+    }
+    states = epsilonify(states);
+    std::vector<int> accepting_reached;
+    std::set_intersection(states.begin(), states.end(),
+                          accepting_states.begin(), accepting_states.end(),
+                          std::back_inserter(accepting_reached));
+    return !accepting_reached.empty();
+  }
+
 private:
   struct pair_hash {
 
@@ -41,9 +57,40 @@ private:
       transitions;
   std::unordered_map<int, std::unordered_set<int>> epsilon_transitions;
   std::unordered_set<int> states;
+
+  std::unordered_set<int>
+  epsilonify(const std::unordered_set<int> &states) const {
+    auto epsilonified = states;
+    for (auto state : states) {
+      if (epsilon_transitions.find(state) != epsilon_transitions.end()) {
+        auto reachable = epsilonify(epsilon_transitions.at(state));
+        epsilonified.insert(reachable.begin(), reachable.end());
+      }
+    }
+    if (states != epsilonified) {
+      return epsilonify(epsilonified);
+    } else {
+      return epsilonified;
+    }
+  }
+
+  std::unordered_set<int>
+  next_states(symbol_type symbol, const std::unordered_set<int> &states) const {
+    std::unordered_set<int> next;
+    for (auto state : epsilonify(states)) {
+      if (transitions.find({symbol, state}) != transitions.end()) {
+        auto to_states = transitions.at({symbol, state});
+        next.insert(to_states.begin(), to_states.end());
+      }
+    }
+    return next;
+  }
 };
 
 class regex {
+
+  template <typename it_type>
+  friend bool regex_match(it_type begin, it_type end, regex r);
 
 public:
   regex(char *pattern);
@@ -95,14 +142,13 @@ template <typename symbol_type> class nfa_visitor {
 public:
   nfa<symbol_type> acceptor;
 
-  nfa_visitor() { acceptor.add_initial_state(next_id()); }
+  nfa_visitor() { acceptor.add_initial_state(id); }
 
   void visit(const regex_expr &expr) {
     for (const auto &simple : expr.exprs) {
       simple.accept(*this);
     }
-    next_id();
-    acceptor.add_accepting_state(prev_id);
+    acceptor.add_accepting_state(id);
   }
 
   void visit(const simple_expr &expr) {
@@ -145,7 +191,7 @@ private:
 
 template <typename it_type>
 bool regex_match(it_type begin, it_type end, regex r) {
-  return false;
+  return r.acceptor.accepts(begin, end);
 }
 
 template <typename it_type>
