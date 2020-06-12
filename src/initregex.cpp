@@ -1,18 +1,38 @@
 #include "initregex.hpp"
 
 #include <stdexcept>
+#include <unordered_set>
+#include <vector>
 
 namespace initregex {
 
 template <typename it_type>
-static std::pair<simple_expr, it_type> parse_simple_expr(it_type begin,
+static std::pair<char, it_type> parse_quoted_char(it_type it, it_type end) {
+  static std::unordered_set<char> valid{'^', '.', '*', '[', '$', '\\'};
+  if (*it != '\\') {
+    throw std::runtime_error{"Invalid quotation"};
+  }
+  ++it;
+  auto c = *it;
+  if (valid.find(c) == valid.end()) {
+    throw std::runtime_error{"Invalid quotation"};
+  }
+  return {c, ++it};
+}
+
+template <typename it_type>
+static std::pair<simple_expr, it_type> parse_simple_expr(it_type it,
                                                          it_type end) {
-  it_type it = begin;
   if (*it == '*' || *it == '^' || *it == '$') {
     throw std::runtime_error{"Unexpected token"};
   }
-  auto c = *it;
-  ++it;
+  char c;
+  if (*it == '\\') {
+    std::tie(c, it) = parse_quoted_char(it, end);
+  } else {
+    c = *it;
+    ++it;
+  }
   auto dupl = false;
   if (*it == '*') {
     dupl = true;
