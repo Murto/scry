@@ -37,7 +37,7 @@ bool regex_match(it_type begin, it_type end) noexcept {
                           std::make_index_sequence<regex::string::size>>::type;
   using tree = typename parse_result<tokens>::type;
   using exec = typename generation_result<tree>::type;
-  return exec::execute(begin, end);
+  return exec::execute(begin, end) == end;
 }
 
 template <typename regex> bool regex_match(const char *str) noexcept {
