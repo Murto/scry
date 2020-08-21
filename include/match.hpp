@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ct_string.hpp"
+#include "generation.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "regex.hpp"
@@ -31,10 +32,12 @@ const char *end(const char *str) {
 
 template <typename regex, typename it_type>
 bool regex_match(it_type begin, it_type end) noexcept {
-  using tokens = typename lex_result<
-      regex, std::make_index_sequence<regex::string::size>>::tokens;
-  using matcher = typename parse_result<tokens>::matcher;
-  return matcher::execute(begin, end);
+  using tokens =
+      typename lex_result<regex,
+                          std::make_index_sequence<regex::string::size>>::type;
+  using tree = typename parse_result<tokens>::type;
+  using exec = typename generation_result<tree>::type;
+  return exec::execute(begin, end);
 }
 
 template <typename regex> bool regex_match(const char *str) noexcept {

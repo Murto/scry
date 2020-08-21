@@ -74,4 +74,8 @@ struct drop_right<list<arg, args...>, n> {
                              size_of<list<arg, args...>>::value - n>::type;
 };
 
+template <typename list> struct init {
+  using type = typename drop_right<list, 1>::type;
+};
+
 } // namespace initregex

@@ -7,157 +7,95 @@
 
 namespace initregex {
 
-template <typename it_type> struct operation_result {
-  bool success;
-  it_type it;
-};
-
-template <typename... operations> struct regex_matcher;
+namespace ast {
 
 /**
- * Attempt match against input sequence
+ * Structure representing a sequence of ASTs which must be satisfied in order
  */
-template <typename operation, typename... operations>
-struct regex_matcher<operation, operations...> {
-  using next = regex_matcher<operations...>;
-  template <typename it_type>
-  constexpr static bool execute(it_type begin, it_type end) noexcept {
-    auto result = operation::execute(begin, end);
-    if (result.success) {
-      return next::execute(result.it, end);
-    } else {
-      return false;
-    }
-  }
-};
+template <typename... asts> struct sequence;
 
 /**
- * Handle matching base case
+ * Structure representing the none-or-more operation (*)
  */
-template <> struct regex_matcher<> {
-  template <typename it_type>
-  constexpr static bool execute(it_type begin, it_type end) noexcept {
-    return begin == end;
-  }
-};
+template <typename ast> struct none_or_more;
 
 /**
- * Do nothing operation
+ * Structure representing the left-anchor (^)
  */
-struct noop {
-  template <typename it_type>
-  constexpr static operation_result<it_type> execute(it_type begin,
-                                                     it_type end) {
-    return {true, begin};
-  }
-};
+struct left_anchor;
 
 /**
- * Accept any character
+ * Structure representing the right-anchor ($)
  */
-struct accept_any {
-  template <typename it_type>
-  constexpr static operation_result<it_type> execute(it_type begin,
-                                                     it_type end) {
-    if (begin != end) {
-      return {true, begin + 1};
-    } else {
-      return {false, begin};
-    }
-  }
-};
+struct right_anchor;
 
 /**
- * Duplcate operation
+ * Structure representing the any character (.)
  */
-template <typename operation> struct duplicate {
-  template <typename it_type>
-  constexpr static operation_result<it_type> execute(it_type begin,
-                                                     it_type end) {
-    auto result = operation::execute(begin, end);
-    auto it = begin;
-    while (result.success) {
-      it = result.it;
-      result = operation::execute(result.it, end);
-    }
-    return {true, it};
-  }
-};
+struct any;
 
 /**
- * Accept arbitrary sequence of characters
+ * Structure representing any single symbol
  */
-template <char c> struct accept {
-  template <typename it_type>
-  constexpr static operation_result<it_type> execute(it_type begin,
-                                                     it_type end) {
-    if (begin != end && *begin == c) {
-      return {true, begin + 1};
-    } else {
-      return {false, begin};
-    }
-  }
-};
+template <char c> struct symbol;
 
-template <typename regex_matcher, typename... tokens> struct parse_matcher;
+} // namespace ast
+
+template <typename ast, typename list> struct parser;
 
 /**
  * Handle base case
  */
-template <typename regex_matcher> struct parse_matcher<regex_matcher> {
-  using type = regex_matcher;
-};
+template <typename ast> struct parser<ast, list<>> { using type = ast; };
 
 /**
  * Handle left-anchor circumflex circumflexes
  */
-template <typename... tokens>
-struct parse_matcher<regex_matcher<>, circumflex, tokens...> {
-  using type = typename parse_matcher<regex_matcher<>, tokens...>::type;
+template <typename... ts>
+struct parser<ast::sequence<>, list<token::circumflex, ts...>> {
+  using type = typename parser<ast::sequence<>, list<ts...>>::type;
 };
 
 /**
  * Handle right-anchor dollar-signs
  */
-template <typename... operations>
-struct parse_matcher<regex_matcher<operations...>, dollar_sign> {
-  using type = typename parse_matcher<regex_matcher<operations...>>::type;
+template <typename... asts>
+struct parser<ast::sequence<asts...>, list<token::dollar_sign>> {
+  using type = typename parser<ast::sequence<asts...>, list<>>::type;
 };
 
 /**
  * Handle dots
  */
-template <typename... operations, typename... tokens>
-struct parse_matcher<regex_matcher<operations...>, dot, tokens...> {
-  using type = typename parse_matcher<regex_matcher<operations..., accept_any>,
-                                      tokens...>::type;
+template <typename... asts, typename... ts>
+struct parser<ast::sequence<asts...>, list<token::dot, ts...>> {
+  using type =
+      typename parser<ast::sequence<asts..., ast::any>, list<ts...>>::type;
 };
 
 /**
- * Handle asterisks with generic operations
+ * Handle asterisks with generic asts
  */
-template <typename... operations, typename... tokens>
-struct parse_matcher<regex_matcher<operations...>, asterisk, tokens...> {
-  using type = typename parse_matcher<
-      typename append<
-          typename drop_right<regex_matcher<operations...>, 1>::type,
-          duplicate<typename last<regex_matcher<operations...>>::type>>::type,
-      tokens...>::type;
+template <typename... asts, typename... ts>
+struct parser<ast::sequence<asts...>, list<token::asterisk, ts...>> {
+  using init_asts = typename init<ast::sequence<asts...>>::type;
+  using last_ast = typename last<ast::sequence<asts...>>::type;
+  using new_ast = typename ast::template none_or_more<last_ast>;
+  using new_asts = typename append<init_asts, new_ast>::type;
+  using type = typename parser<new_asts, list<ts...>>::type;
 };
 
 /**
  * Handle symbols
  */
-template <typename... operations, char c, typename... tokens>
-struct parse_matcher<regex_matcher<operations...>, symbol<c>, tokens...> {
-  using type = typename parse_matcher<regex_matcher<operations..., accept<c>>,
-                                      tokens...>::type;
+template <typename... asts, char c, typename... ts>
+struct parser<ast::sequence<asts...>, list<token::symbol<c>, ts...>> {
+  using type = typename parser<ast::sequence<asts..., ast::symbol<c>>,
+                               list<ts...>>::type;
 };
 
-template <typename list> struct parse_result;
-
-template <typename... tokens> struct parse_result<list<tokens...>> {
-  using matcher = typename parse_matcher<regex_matcher<>, tokens...>::type;
+template <typename list> struct parse_result {
+  using type = typename parser<ast::sequence<>, list>::type;
 };
 
 } // namespace initregex
