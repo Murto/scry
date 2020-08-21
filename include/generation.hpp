@@ -1,12 +1,13 @@
 #pragma once
 
+#include "definitions.hpp"
 #include "parser.hpp"
 
 namespace scry {
 
 struct noop {
   template <typename it_type>
-  constexpr static bool execute(it_type begin, it_type end) {
+  SCRY_INLINE constexpr static bool execute(it_type begin, it_type end) {
     return false;
   }
 };
