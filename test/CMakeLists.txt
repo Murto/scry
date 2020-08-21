@@ -1,5 +1,3 @@
 set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
 include_directories(${PROJECT_SOURCE_DIR}/include)
-link_directories(${PROJECT_SOURCE_DIR}/build/src)
 add_executable(test test.cpp)
-target_link_libraries(test initregex)

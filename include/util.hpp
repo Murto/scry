@@ -1,6 +1,6 @@
 #pragma once
 
-namespace initregex {
+namespace scry {
 
 template <typename... args> struct list;
 
@@ -78,4 +78,4 @@ template <typename list> struct init {
   using type = typename drop_right<list, 1>::type;
 };
 
-} // namespace initregex
+} // namespace scry

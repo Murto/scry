@@ -10,7 +10,7 @@
 #include <string>
 #include <utility>
 
-namespace initregex {
+namespace scry {
 
 namespace {
 
@@ -48,4 +48,4 @@ template <typename regex> bool regex_match(std::string str) noexcept {
   return regex_match<regex>(str.begin(), str.end());
 }
 
-} // namespace initregex
+} // namespace scry

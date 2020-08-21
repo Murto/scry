@@ -4,7 +4,7 @@
 
 #include <utility>
 
-namespace initregex {
+namespace scry {
 
 namespace token {
 
@@ -140,4 +140,4 @@ struct lex_result<regex, std::index_sequence<n...>> {
   using type = typename lexer<list<>, regex::string::get(n)...>::type;
 };
 
-} // namespace initregex
+} // namespace scry

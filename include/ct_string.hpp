@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace initregex {
+namespace scry {
 
 namespace {
 
@@ -27,4 +27,4 @@ public:
   constexpr static size_type size = size_of_str(cs);
 };
 
-} // namespace initregex
+} // namespace scry

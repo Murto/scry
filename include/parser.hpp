@@ -5,7 +5,7 @@
 
 #include <cstdio>
 
-namespace initregex {
+namespace scry {
 
 namespace ast {
 
@@ -98,4 +98,4 @@ template <typename list> struct parse_result {
   using type = typename parser<ast::sequence<>, list>::type;
 };
 
-} // namespace initregex
+} // namespace scry
