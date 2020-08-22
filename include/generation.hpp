@@ -57,20 +57,88 @@ template <typename next, typename op> struct none_or_more {
     auto it = begin;
     maybe<it_type> best;
     while (true) {
-      {
-        auto next_it = next::execute(it, end);
-        if (next_it) {
-          best = next_it;
-        }
+      if (auto next_it = next::execute(it, end)) {
+        best = next_it;
       }
-      {
-        auto next_it = op::execute(it, end);
-        if (!next_it) {
-          return best;
-        }
-        it = next_it;
+      auto next_it = op::execute(it, end);
+      if (!next_it) {
+        return best;
       }
+      it = next_it;
     }
+  }
+};
+
+template <typename next, typename op, std::size_t n> struct repeat {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    auto it = begin;
+    for (std::size_t i = 0; i < n; ++i) {
+      auto next_it = op::execute(it, end);
+      if (!next_it) {
+        return {};
+      }
+      it = next_it;
+    }
+    return next::execute(it, end);
+  }
+};
+
+template <typename next, typename op, std::size_t n> struct at_least {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    auto it = begin;
+    for (std::size_t i = 0; i < n; ++i) {
+      auto next_it = op::execute(it, end);
+      if (!next_it) {
+        return {};
+      }
+      it = next_it;
+    }
+    maybe<it_type> best = it;
+    while (true) {
+      if (auto next_it = next::execute(it, end)) {
+        best = next_it;
+      }
+      auto next_it = op::execute(it, end);
+      if (!next_it) {
+        return best;
+      }
+      it = next_it;
+    }
+  }
+};
+
+template <typename next, typename op, std::size_t n, std::size_t m>
+struct between {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    auto it = begin;
+    for (std::size_t i = 0; i < n; ++i) {
+      auto next_it = op::execute(it, end);
+      if (!next_it) {
+        return {};
+      }
+      it = next_it;
+    }
+    maybe<it_type> best = it;
+    for (std::size_t i = 0; i < m - n; ++i) {
+      if (auto next_it = next::execute(it, end)) {
+        best = next_it;
+      }
+      auto next_it = op::execute(it, end);
+      if (!next_it) {
+        return best;
+      }
+      it = next_it;
+    }
+    if (auto next_it = next::execute(it, end)) {
+      best = next_it;
+    }
+    return best;
   }
 };
 
@@ -133,6 +201,27 @@ struct generation<ast::sequence<ast::none_or_more<inner_ast>, asts...>> {
   using inner = typename generation<inner_ast>::type;
   using next = typename generation<ast::sequence<asts...>>::type;
   using type = typename op::none_or_more<next, inner>;
+};
+
+template <typename inner_ast, std::size_t n, typename... asts>
+struct generation<ast::sequence<ast::interval<inner_ast, n>, asts...>> {
+  using inner = typename generation<inner_ast>::type;
+  using next = typename generation<ast::sequence<asts...>>::type;
+  using type = typename op::repeat<next, inner, n>;
+};
+
+template <typename inner_ast, std::size_t n, typename... asts>
+struct generation<ast::sequence<ast::lower_bound<inner_ast, n>, asts...>> {
+  using inner = typename generation<inner_ast>::type;
+  using next = typename generation<ast::sequence<asts...>>::type;
+  using type = typename op::at_least<next, inner, n>;
+};
+
+template <typename inner_ast, std::size_t n, std::size_t m, typename... asts>
+struct generation<ast::sequence<ast::bounded<inner_ast, n, m>, asts...>> {
+  using inner = typename generation<inner_ast>::type;
+  using next = typename generation<ast::sequence<asts...>>::type;
+  using type = typename op::between<next, inner, n, m>;
 };
 
 template <typename... asts>

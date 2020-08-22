@@ -1,6 +1,27 @@
 #pragma once
 
+#include <cstddef>
+#include <type_traits>
+
 namespace scry {
+
+struct yes {
+  constexpr static const bool value = true;
+};
+
+struct no {
+  constexpr static const bool value = false;
+};
+
+template <char c> struct is_digit {
+  constexpr static const bool value = std::conditional < '0' <= c && c <= '9',
+                              yes, no > ::type::value;
+};
+
+template <char c> struct to_digit {
+  static_assert(is_digit<c>::value, "c must be a digit");
+  constexpr static const char value = c - '0';
+};
 
 template <typename... args> struct list;
 
