@@ -14,7 +14,6 @@ struct dot {};
 struct asterisk {};
 struct left_brace {};
 struct right_brace {};
-struct comma {};
 template <char c> struct symbol { constexpr static const char value = c; };
 
 } // namespace token
@@ -118,13 +117,6 @@ struct lexer<list<ts...>, '\\', '{', cs...> {
 template <typename... ts, char... cs>
 struct lexer<list<ts...>, '\\', '}', cs...> {
   using type = typename lexer<list<ts..., token::right_brace>, cs...>::type;
-};
-
-/**
- * Handle commas
- */
-template <typename... ts, char... cs> struct lexer<list<ts...>, ',', cs...> {
-  using type = typename lexer<list<ts..., token::comma>, cs...>::type;
 };
 
 /**

@@ -82,9 +82,9 @@ struct interval_parser<list<token::left_brace, number<n>>,
 
 template <std::size_t n, typename... ts>
 struct interval_parser<list<token::left_brace, number<n>>,
-                       list<token::comma, ts...>> {
+                       list<token::symbol<','>, ts...>> {
   using interval_t =
-      interval_parser<list<token::left_brace, number<n>, token::comma>,
+      interval_parser<list<token::left_brace, number<n>, token::symbol<','>>,
                       list<ts...>>;
   template <typename inner_ast>
   using type = typename interval_t::template type<inner_ast>;
@@ -107,10 +107,10 @@ struct interval_parser<list<token::left_brace, number<n>>,
 };
 
 template <std::size_t n, char c, typename... ts>
-struct interval_parser<list<token::left_brace, number<n>, token::comma>,
+struct interval_parser<list<token::left_brace, number<n>, token::symbol<','>>,
                        list<token::symbol<c>, ts...>> {
   using interval_t =
-      interval_parser<list<token::left_brace, number<n>, token::comma,
+      interval_parser<list<token::left_brace, number<n>, token::symbol<','>,
                            number<to_digit<c>::value>>,
                       list<ts...>>;
   template <typename inner_ast>
@@ -120,10 +120,10 @@ struct interval_parser<list<token::left_brace, number<n>, token::comma>,
 
 template <std::size_t n, std::size_t m, char c, typename... ts>
 struct interval_parser<
-    list<token::left_brace, number<n>, token::comma, number<m>>,
+    list<token::left_brace, number<n>, token::symbol<','>, number<m>>,
     list<token::symbol<c>, ts...>> {
   using interval_t =
-      interval_parser<list<token::left_brace, number<n>, token::comma,
+      interval_parser<list<token::left_brace, number<n>, token::symbol<','>,
                            number<m * 10 + to_digit<c>::value>>,
                       list<ts...>>;
   template <typename inner_ast>
@@ -133,10 +133,10 @@ struct interval_parser<
 
 template <std::size_t n, std::size_t m, typename... ts>
 struct interval_parser<
-    list<token::left_brace, number<n>, token::comma, number<m>>,
+    list<token::left_brace, number<n>, token::symbol<','>, number<m>>,
     list<token::right_brace, ts...>> {
   using interval_t =
-      interval_parser<list<token::left_brace, number<n>, token::comma,
+      interval_parser<list<token::left_brace, number<n>, token::symbol<','>,
                            number<m>, token::right_brace>,
                       list<ts...>>;
   template <typename inner_ast>
@@ -146,15 +146,16 @@ struct interval_parser<
 
 template <std::size_t n, char c, typename... ts>
 struct interval_parser<
-    list<token::left_brace, number<n>, token::comma, number<0>>,
+    list<token::left_brace, number<n>, token::symbol<','>, number<0>>,
     list<token::symbol<c>, ts...>>;
 
 template <std::size_t n, typename... ts>
-struct interval_parser<list<token::left_brace, number<n>, token::comma>,
+struct interval_parser<list<token::left_brace, number<n>, token::symbol<','>>,
                        list<token::right_brace, ts...>> {
-  using interval_t = interval_parser<
-      list<token::left_brace, number<n>, token::comma, token::right_brace>,
-      list<ts...>>;
+  using interval_t =
+      interval_parser<list<token::left_brace, number<n>, token::symbol<','>,
+                           token::right_brace>,
+                      list<ts...>>;
   template <typename inner_ast>
   using type = typename interval_t::template type<inner_ast>;
   using tokens = typename interval_t::tokens;
@@ -170,14 +171,15 @@ struct interval_parser<list<token::left_brace, number<n>, token::right_brace>,
 
 template <std::size_t n, typename ts>
 struct interval_parser<
-    list<token::left_brace, number<n>, token::comma, token::right_brace>, ts> {
+    list<token::left_brace, number<n>, token::symbol<','>, token::right_brace>,
+    ts> {
   template <typename inner_ast>
   using type = typename ast::template lower_bound<inner_ast, n>;
   using tokens = ts;
 };
 
 template <std::size_t n, std::size_t m, typename ts>
-struct interval_parser<list<token::left_brace, number<n>, token::comma,
+struct interval_parser<list<token::left_brace, number<n>, token::symbol<','>,
                             number<m>, token::right_brace>,
                        ts> {
   template <typename inner_ast>
