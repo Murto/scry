@@ -9,9 +9,9 @@ constexpr static const char adotsf_pattern[] = R"(a\.\.\.\.f)";
 constexpr static const char lotofa_pattern[] = R"(a*)";
 constexpr static const char anchored_abcdef_pattern[] = R"(^abcdef$)";
 constexpr static const char escaped_anchor_pattern[] = R"(^\^\^\$\$$)";
-constexpr static const char ten_as_pattern[] = R"(a{10})";
-constexpr static const char least_ten_as_pattern[] = R"(a{10,})";
-constexpr static const char between_as_pattern[] = R"(a{5,10})";
+constexpr static const char ten_as_pattern[] = R"(a\{10\})";
+constexpr static const char least_ten_as_pattern[] = R"(a\{10,\})";
+constexpr static const char between_as_pattern[] = R"(a\{5,10\})";
 
 int main() {
 

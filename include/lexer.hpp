@@ -107,14 +107,16 @@ template <char... cs> struct lexer<list<>, '*', cs...>;
 /**
  * Handle left braces
  */
-template <typename... ts, char... cs> struct lexer<list<ts...>, '{', cs...> {
+template <typename... ts, char... cs>
+struct lexer<list<ts...>, '\\', '{', cs...> {
   using type = typename lexer<list<ts..., token::left_brace>, cs...>::type;
 };
 
 /**
  * Handle right braces
  */
-template <typename... ts, char... cs> struct lexer<list<ts...>, '}', cs...> {
+template <typename... ts, char... cs>
+struct lexer<list<ts...>, '\\', '}', cs...> {
   using type = typename lexer<list<ts..., token::right_brace>, cs...>::type;
 };
 
