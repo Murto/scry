@@ -2,8 +2,42 @@
 
 #include <cstddef>
 #include <type_traits>
+#include <utility>
 
 namespace scry {
+
+/**
+ * Helper implementation of optional type
+ * Note: std::optional is not used as the library aims to move its
+ *       compatibility backwards towards c++11 (though a performance comparison
+ *       would be interesting).
+ */
+template <typename type> struct maybe {
+  type value{};
+  bool some{false};
+  SCRY_INLINE constexpr maybe() noexcept = default;
+  SCRY_INLINE constexpr maybe(const type &value) noexcept
+      : value{value}, some{true} {}
+  SCRY_INLINE constexpr maybe(type &&value) noexcept
+      : value{std::move(value)}, some{true} {}
+  SCRY_INLINE constexpr maybe(const maybe<type> &other) noexcept
+      : value{other.value}, some{other.some} {}
+  SCRY_INLINE constexpr maybe(maybe<type> &&other) noexcept
+      : value{std::move(other.value)}, some{other.some} {}
+  SCRY_INLINE constexpr operator bool() const noexcept { return some; }
+  SCRY_INLINE constexpr operator type() const noexcept { return value; }
+  SCRY_INLINE constexpr maybe<type> &
+  operator=(const maybe<type> &other) noexcept {
+    value = other.value;
+    some = other.some;
+    return *this;
+  }
+  SCRY_INLINE constexpr maybe<type> &operator=(maybe<type> &&other) noexcept {
+    value = std::move(other.value);
+    some = other.some;
+    return *this;
+  }
+};
 
 struct yes {
   constexpr static const bool value = true;
