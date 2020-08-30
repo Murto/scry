@@ -84,10 +84,9 @@ struct append<list<>, arg> {
   using type = list<arg>;
 };
 
-template <template <typename...> typename list, typename arg0, typename arg1,
-          typename... args>
-struct append<list<arg0, args...>, arg1> {
-  using type = typename prepend<arg0, append<list<args...>, arg1>>::type;
+template <template <typename...> typename list, typename... args, typename arg>
+struct append<list<args...>, arg> {
+  using type = list<args..., arg>;
 };
 
 template <typename list> struct last;
@@ -99,7 +98,7 @@ struct last<list<arg>> {
 
 template <template <typename...> typename list, typename arg, typename... args>
 struct last<list<arg, args...>> {
-  using type = typename last<args...>::type;
+  using type = typename last<list<args...>>::type;
 };
 
 template <typename list, std::size_t n> struct take;
