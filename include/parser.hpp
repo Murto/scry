@@ -8,7 +8,7 @@ namespace scry {
 namespace ast {
 
 template <typename...> struct sequence;
-template <char c> struct symbol;
+template <char c> struct symbol { constexpr static char value = c; };
 struct any;
 template <typename nested> struct zero_or_more;
 struct left_anchor;
@@ -18,6 +18,9 @@ template <std::size_t n, typename nested> struct at_least;
 template <std::size_t n, std::size_t m, typename nested> struct between;
 template <typename...> struct any_of;
 template <typename...> struct none_of;
+template <char lower, char upper> struct range {
+  static_assert(lower <= upper, "Invalid range expression");
+};
 
 } // namespace ast
 
@@ -191,7 +194,7 @@ struct parse_brkex<list<>, list<token<'['>, tokens...>> {
 };
 
 /**
- * Handle generic symbols
+ * Handle generic tokens
  */
 template <typename... parts, char c, typename... tokens>
 struct parse_brkex<list<ast::symbol<'['>, parts...>,
@@ -203,13 +206,15 @@ struct parse_brkex<list<ast::symbol<'['>, parts...>,
 };
 
 /**
- * Handle close-bracket character (']')
+ * Handle escaped tokens
  */
-template <typename... parts, typename... tokens>
+template <typename... parts, char c, typename... tokens>
 struct parse_brkex<list<ast::symbol<'['>, parts...>,
-                   list<token<']'>, tokens...>> {
-  using type = ast::any_of<parts...>;
-  using unused = list<tokens...>;
+                   list<token<'\\'>, token<c>, tokens...>> {
+  using brkex = parse_brkex<list<ast::symbol<'['>, parts..., ast::symbol<c>>,
+                            list<tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
 };
 
 /**
@@ -224,6 +229,93 @@ struct parse_brkex<list<ast::symbol<'['>>, list<token<']'>, tokens...>> {
 };
 
 /**
+ * Handle range expressions
+ */
+template <typename... asts, char c, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, asts...>,
+                   list<token<'-'>, token<c>, tokens...>> {
+  using init_asts = typename init<list<ast::symbol<'['>, asts...>>::type;
+  using last_ast = typename last<list<asts...>>::type;
+  using new_ast = typename ast::range<last_ast::value, c>;
+  using new_asts = typename append<init_asts, new_ast>::type;
+  using brkex = parse_brkex<new_asts, list<tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle range expressions with escaped hyphens
+ */
+template <typename... asts, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, asts...>,
+                   list<token<'\\'>, token<'-'>, tokens...>> {
+  using brkex =
+      parse_brkex<list<ast::symbol<'['>, asts...>, list<token<'-'>, tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle range expressions with escaped upper limits
+ */
+template <typename... asts, char c, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, asts...>,
+                   list<token<'-'>, token<'\\'>, token<c>, tokens...>> {
+  using brkex = parse_brkex<list<ast::symbol<'['>, asts...>,
+                            list<token<'-'>, token<c>, tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle range expressions with an escaped escape as its upper limit
+ */
+template <typename... asts, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, asts...>,
+                   list<token<'-'>, token<'\\'>, token<'\\'>, tokens...>> {
+  using init_asts = typename init<list<ast::symbol<'['>, asts...>>::type;
+  using last_ast = typename last<list<asts...>>::type;
+  using new_ast = typename ast::range<last_ast::value, '\\'>;
+  using new_asts = typename append<init_asts, new_ast>::type;
+  using brkex = parse_brkex<new_asts, list<tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle hyphen token ('-') at start of bracket expression
+ */
+template <typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>>, list<token<'-'>, tokens...>> {
+  using brkex =
+      parse_brkex<list<ast::symbol<'['>, ast::symbol<'-'>>, list<tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle hyphen token ('-') at end of bracket expression
+ */
+template <typename... asts, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, asts...>,
+                   list<token<'-'>, token<']'>, tokens...>> {
+  using brkex = parse_brkex<list<ast::symbol<'['>, asts..., ast::symbol<'-'>>,
+                            list<token<']'>, tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle close-bracket character (']') for matching lists
+ */
+template <typename... parts, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, parts...>,
+                   list<token<']'>, tokens...>> {
+  using type = ast::any_of<parts...>;
+  using unused = list<tokens...>;
+};
+
+/**
  * Structure used for parsing regular expressions
  */
 template <typename ast, typename tokens> struct parse_regex;
@@ -234,7 +326,7 @@ template <typename ast, typename tokens> struct parse_regex;
 template <typename ast> struct parse_regex<ast, list<>> { using type = ast; };
 
 /**
- * Handle generic characters
+ * Handle generic tokens
  */
 template <typename... asts, char c, typename... tokens>
 struct parse_regex<ast::sequence<asts...>, list<token<c>, tokens...>> {
@@ -287,6 +379,15 @@ struct parse_regex<ast::sequence<asts...>, list<token<'*'>, tokens...>> {
   using new_ast = typename ast::zero_or_more<last_ast>;
   using new_asts = typename append<init_asts, new_ast>::type;
   using type = typename parse_regex<new_asts, list<tokens...>>::type;
+};
+
+/**
+ * Handle asterisk character ('*') without preceding ast
+ */
+template <typename... tokens>
+struct parse_regex<ast::sequence<>, list<token<'*'>, tokens...>> {
+  using type = typename parse_regex<ast::sequence<ast::symbol<'*'>>,
+                                    list<tokens...>>::type;
 };
 
 /**

@@ -13,6 +13,7 @@ constexpr static const char ten_as_pattern[] = R"(a\{10\})";
 constexpr static const char least_ten_as_pattern[] = R"(a\{10,\})";
 constexpr static const char between_as_pattern[] = R"(a\{5,10\})";
 constexpr static const char some_abcdef_pattern[] = R"([abcdef]*)";
+constexpr static const char some_lower_pattern[] = R"([a-z]*)";
 
 int main() {
 
@@ -26,6 +27,7 @@ int main() {
   using least_ten_as = scry::regex<least_ten_as_pattern>;
   using between_as = scry::regex<between_as_pattern>;
   using some_abcdef = scry::regex<some_abcdef_pattern>;
+  using some_lower = scry::regex<some_lower_pattern>;
 
   // Test char seqeuences
   assert(scry::regex_match<abcdef>("abcdef"));
@@ -100,4 +102,11 @@ int main() {
   assert(scry::regex_match<some_abcdef>("abcdef"));
   assert(scry::regex_match<some_abcdef>("fedcba"));
   assert(!scry::regex_match<some_abcdef>("g"));
+
+  // Test range expressions
+  assert(scry::regex_match<some_lower>(""));
+  assert(scry::regex_match<some_lower>("abcdefghijklmnopqrstuvwxyz"));
+  assert(!scry::regex_match<some_lower>("A"));
+  assert(!scry::regex_match<some_lower>("M"));
+  assert(!scry::regex_match<some_lower>("Z"));
 }

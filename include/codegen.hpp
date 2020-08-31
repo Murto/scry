@@ -171,6 +171,21 @@ template <typename left, typename right, typename next> struct left_or_right {
   }
 };
 
+/**
+ * Structure representing generic symbols
+ */
+template <char lower, char upper, typename next> struct accept_range {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    if (begin != end && lower <= *begin && *begin <= upper) {
+      return next::execute(begin + 1, end);
+    } else {
+      return {};
+    }
+  }
+};
+
 } // namespace op
 
 namespace {
@@ -284,8 +299,26 @@ struct generate_code<ast::any_of<ast::symbol<c>, asts...>> {
                         op::noop>;
 };
 
+template <char upper, char lower, typename... asts>
+struct generate_code<ast::any_of<ast::range<lower, upper>, asts...>> {
+  using type =
+      op::left_or_right<op::accept_range<lower, upper, op::noop>,
+                        typename generate_code<ast::any_of<asts...>>::type,
+                        op::noop>;
+};
+
 template <char c> struct generate_code<ast::any_of<ast::symbol<c>>> {
   using type = op::accept<c, op::noop>;
+};
+
+template <char lower, char upper>
+struct generate_code<ast::any_of<ast::range<lower, upper>>> {
+  using type = op::accept_range<lower, upper, op::noop>;
+};
+
+template <char lower, char upper>
+struct generate_code<ast::range<lower, upper>> {
+  using type = op::accept_range<lower, upper, op::noop>;
 };
 
 } // anonymous namespace
