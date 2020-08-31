@@ -34,6 +34,18 @@ template <char c, typename next> struct accept {
   }
 };
 
+template <char c, typename next> struct reject {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    if (begin != end && *begin != c) {
+      return next::execute(begin + 1, end);
+    } else {
+      return {};
+    }
+  }
+};
+
 /**
  * Structure representing the any character (.)
  */
@@ -172,13 +184,49 @@ template <typename left, typename right, typename next> struct left_or_right {
 };
 
 /**
- * Structure representing generic symbols
+ * Structure representing an or relation between left and right asts
+ */
+template <typename left, typename right, typename next> struct left_and_right {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    auto left_it = left::execute(begin, end);
+    auto right_it = right::execute(begin, end);
+    if (left_it && right_it) {
+      if (left_it > right_it) {
+        return next::execute(*left_it, end);
+      } else {
+        return next::execute(*right_it, end);
+      }
+    } else {
+      return {};
+    }
+  }
+};
+
+/**
+ * Structure representing a range of symbols which may be accepted
  */
 template <char lower, char upper, typename next> struct accept_range {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
     if (begin != end && lower <= *begin && *begin <= upper) {
+      return next::execute(begin + 1, end);
+    } else {
+      return {};
+    }
+  }
+};
+
+/**
+ * Structure representing a range of symbols which may be rejected
+ */
+template <char lower, char upper, typename next> struct reject_range {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    if (begin != end && (lower > *begin || *begin > upper)) {
       return next::execute(begin + 1, end);
     } else {
       return {};
@@ -316,9 +364,34 @@ struct generate_code<ast::any_of<ast::range<lower, upper>>> {
   using type = op::accept_range<lower, upper, op::noop>;
 };
 
+template <char c, typename... asts>
+struct generate_code<ast::none_of<ast::symbol<c>, asts...>> {
+  using type =
+      op::left_and_right<op::reject<c, op::noop>,
+                         typename generate_code<ast::none_of<asts...>>::type,
+                         op::noop>;
+};
+
+template <char upper, char lower, typename... asts>
+struct generate_code<ast::none_of<ast::range<lower, upper>, asts...>> {
+  using type =
+      op::left_and_right<op::reject_range<lower, upper, op::noop>,
+                         typename generate_code<ast::none_of<asts...>>::type,
+                         op::noop>;
+};
+
+template <char c> struct generate_code<ast::none_of<ast::symbol<c>>> {
+  using type = op::reject<c, op::noop>;
+};
+
+template <char lower, char upper>
+struct generate_code<ast::none_of<ast::range<lower, upper>>> {
+  using type = op::reject_range<lower, upper, op::noop>;
+};
+
 template <char lower, char upper>
 struct generate_code<ast::range<lower, upper>> {
-  using type = op::accept_range<lower, upper, op::noop>;
+  using type = op::reject_range<lower, upper, op::noop>;
 };
 
 } // anonymous namespace

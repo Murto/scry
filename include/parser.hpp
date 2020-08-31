@@ -283,12 +283,25 @@ struct parse_brkex<list<ast::symbol<'['>, asts...>,
 };
 
 /**
- * Handle hyphen token ('-') at start of bracket expression
+ * Handle hyphen token ('-') at start of matching bracket expression
  */
 template <typename... tokens>
 struct parse_brkex<list<ast::symbol<'['>>, list<token<'-'>, tokens...>> {
   using brkex =
       parse_brkex<list<ast::symbol<'['>, ast::symbol<'-'>>, list<tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle hyphen token ('-') at start of non-matching bracket expression
+ */
+template <typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, ast::symbol<'^'>>,
+                   list<token<'-'>, tokens...>> {
+  using brkex =
+      parse_brkex<list<ast::symbol<'['>, ast::symbol<'^'>, ast::symbol<'-'>>,
+                  list<tokens...>>;
   using type = typename brkex::type;
   using unused = typename brkex::unused;
 };
@@ -312,6 +325,16 @@ template <typename... parts, typename... tokens>
 struct parse_brkex<list<ast::symbol<'['>, parts...>,
                    list<token<']'>, tokens...>> {
   using type = ast::any_of<parts...>;
+  using unused = list<tokens...>;
+};
+
+/**
+ * Handle close-bracket character (']') for non-matching lists
+ */
+template <typename... parts, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, ast::symbol<'^'>, parts...>,
+                   list<token<']'>, tokens...>> {
+  using type = ast::none_of<parts...>;
   using unused = list<tokens...>;
 };
 
