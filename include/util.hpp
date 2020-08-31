@@ -37,6 +37,19 @@ template <typename type> struct maybe {
     some = other.some;
     return *this;
   }
+  SCRY_INLINE constexpr type &operator*() noexcept { return value; }
+  SCRY_INLINE constexpr bool operator==(const maybe<type> &other) {
+    return !(*this || other) || (*this && other && value == other.value);
+  }
+  SCRY_INLINE constexpr bool operator==(const type &other) {
+    return !(*this || other) || (*this && other && value == other);
+  }
+  SCRY_INLINE constexpr bool operator>(const maybe<type> &other) {
+    return !(*this || other) || (*this && other && value > other.value);
+  }
+  SCRY_INLINE constexpr bool operator>(const type &other) {
+    return !(*this || other) || (*this && other && value > other);
+  }
 };
 
 struct yes {

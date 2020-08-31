@@ -146,6 +146,31 @@ template <std::size_t n, typename nested, typename next> struct accept_up_to_n {
   }
 };
 
+/**
+ * Structure representing an or relation between left and right asts
+ */
+template <typename left, typename right, typename next> struct left_or_right {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    auto left_it = left::execute(begin, end);
+    auto right_it = right::execute(begin, end);
+    if (left_it && right_it) {
+      if (left_it > right_it) {
+        return next::execute(*left_it, end);
+      } else {
+        return next::execute(*right_it, end);
+      }
+    } else if (left_it) {
+      return next::execute(*left_it, end);
+    } else if (right_it) {
+      return next::execute(*right_it, end);
+    } else {
+      return {};
+    }
+  }
+};
+
 } // namespace op
 
 namespace {
@@ -249,6 +274,18 @@ struct generate_code<ast::between<n, m, nested>> {
       n, typename generate_code<nested>::type,
       op::accept_up_to_n<m - n, typename generate_code<nested>::type,
                          op::noop>>;
+};
+
+template <char c, typename... asts>
+struct generate_code<ast::any_of<ast::symbol<c>, asts...>> {
+  using type =
+      op::left_or_right<op::accept<c, op::noop>,
+                        typename generate_code<ast::any_of<asts...>>::type,
+                        op::noop>;
+};
+
+template <char c> struct generate_code<ast::any_of<ast::symbol<c>>> {
+  using type = op::accept<c, op::noop>;
 };
 
 } // anonymous namespace

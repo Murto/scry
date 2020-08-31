@@ -16,6 +16,8 @@ struct right_anchor;
 template <std::size_t n, typename nested> struct exactly;
 template <std::size_t n, typename nested> struct at_least;
 template <std::size_t n, std::size_t m, typename nested> struct between;
+template <typename...> struct any_of;
+template <typename...> struct none_of;
 
 } // namespace ast
 
@@ -44,6 +46,11 @@ template <std::size_t n> struct number;
  * Structure used for parsing brace expressions
  */
 template <typename parts, typename tokens> struct parse_brcex;
+
+/**
+ * Structure used for parsing bracket expressions
+ */
+template <typename parts, typename tokens> struct parse_brkex;
 
 /**
  * Handle open-brace digraph ('\{')
@@ -175,6 +182,49 @@ struct parse_brcex<
 };
 
 /**
+ * Handle initial open-bracket
+ */
+template <typename... tokens>
+struct parse_brkex<list<>, list<symbol<'['>, tokens...>> {
+  using brkex = parse_brkex<list<ast::symbol<'['>>, list<tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle generic symbols
+ */
+template <typename... parts, char c, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, parts...>,
+                   list<symbol<c>, tokens...>> {
+  using brkex = parse_brkex<list<ast::symbol<'['>, parts..., ast::symbol<c>>,
+                            list<tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle close-bracket character (']')
+ */
+template <typename... parts, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, parts...>,
+                   list<symbol<']'>, tokens...>> {
+  using type = ast::any_of<parts...>;
+  using unused = list<tokens...>;
+};
+
+/**
+ * Handle immediate close-bracket character
+ */
+template <typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>>, list<symbol<']'>, tokens...>> {
+  using brkex =
+      parse_brkex<list<ast::symbol<'['>, ast::symbol<']'>>, list<tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
  * Structure used for parsing regular expressions
  */
 template <typename ast, typename tokens> struct parse_regex;
@@ -278,6 +328,9 @@ struct parse_regex<ast::sequence<asts...>,
                                     list<tokens...>>::type;
 };
 
+/**
+ * Handle escaped open-brace digraph ('\{')
+ */
 template <typename... asts, typename... tokens>
 struct parse_regex<ast::sequence<asts...>,
                    list<symbol<'\\'>, symbol<'{'>, tokens...>> {
@@ -287,6 +340,17 @@ struct parse_regex<ast::sequence<asts...>,
   using new_ast = typename brcex::template type<last_ast>;
   using new_asts = typename append<init_asts, new_ast>::type;
   using type = typename parse_regex<new_asts, typename brcex::unused>::type;
+};
+
+/**
+ * Handle open-bracket character ('[')
+ */
+template <typename... asts, typename... tokens>
+struct parse_regex<ast::sequence<asts...>, list<symbol<'['>, tokens...>> {
+  using brkex = parse_brkex<list<>, list<symbol<'['>, tokens...>>;
+  using type =
+      typename parse_regex<ast::sequence<asts..., typename brkex::type>,
+                           typename brkex::unused>::type;
 };
 
 } // anonymous namespace

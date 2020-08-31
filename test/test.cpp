@@ -12,6 +12,7 @@ constexpr static const char escaped_anchor_pattern[] = R"(^\^\^\$\$$)";
 constexpr static const char ten_as_pattern[] = R"(a\{10\})";
 constexpr static const char least_ten_as_pattern[] = R"(a\{10,\})";
 constexpr static const char between_as_pattern[] = R"(a\{5,10\})";
+constexpr static const char some_abcdef_pattern[] = R"([abcdef]*)";
 
 int main() {
 
@@ -24,13 +25,13 @@ int main() {
   using ten_as = scry::regex<ten_as_pattern>;
   using least_ten_as = scry::regex<least_ten_as_pattern>;
   using between_as = scry::regex<between_as_pattern>;
+  using some_abcdef = scry::regex<some_abcdef_pattern>;
 
   // Test char seqeuences
   assert(scry::regex_match<abcdef>("abcdef"));
   assert(!scry::regex_match<abcdef>(""));
   assert(!scry::regex_match<abcdef>("abcdefg"));
   assert(!scry::regex_match<abcdef>("fedcba"));
-
   // Test dot
   assert(scry::regex_match<a____f>("abcdef"));
   assert(!scry::regex_match<a____f>(""));
@@ -87,4 +88,16 @@ int main() {
   assert(!scry::regex_match<between_as>(""));
   assert(!scry::regex_match<between_as>("aaaa"));
   assert(!scry::regex_match<between_as>("aaaaaaaaaaa"));
+
+  // Test basic bracket expressions
+  assert(scry::regex_match<some_abcdef>(""));
+  assert(scry::regex_match<some_abcdef>("a"));
+  assert(scry::regex_match<some_abcdef>("b"));
+  assert(scry::regex_match<some_abcdef>("c"));
+  assert(scry::regex_match<some_abcdef>("d"));
+  assert(scry::regex_match<some_abcdef>("e"));
+  assert(scry::regex_match<some_abcdef>("f"));
+  assert(scry::regex_match<some_abcdef>("abcdef"));
+  assert(scry::regex_match<some_abcdef>("fedcba"));
+  assert(!scry::regex_match<some_abcdef>("g"));
 }
