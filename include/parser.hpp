@@ -35,7 +35,7 @@ namespace {
 /**
  * Helper struct to convert char values into types
  */
-template <char c> struct symbol;
+template <char c> struct token;
 
 /**
  * Helper struct to convert number values into types
@@ -56,8 +56,8 @@ template <typename parts, typename tokens> struct parse_brkex;
  * Handle open-brace digraph ('\{')
  */
 template <typename... tokens>
-struct parse_brcex<list<>, list<symbol<'\\'>, symbol<'{'>, tokens...>> {
-  using brcex = parse_brcex<list<symbol<'{'>>, list<tokens...>>;
+struct parse_brcex<list<>, list<token<'\\'>, token<'{'>, tokens...>> {
+  using brcex = parse_brcex<list<token<'{'>>, list<tokens...>>;
   template <typename nested> using type = typename brcex::template type<nested>;
   using unused = typename brcex::unused;
 };
@@ -66,32 +66,32 @@ struct parse_brcex<list<>, list<symbol<'\\'>, symbol<'{'>, tokens...>> {
  * Handle lower bound number
  */
 template <char c, typename... tokens>
-struct parse_brcex<list<symbol<'{'>>, list<symbol<c>, tokens...>> {
-  using brcex = parse_brcex<list<symbol<'{'>, number<to_digit<c>::value>>,
+struct parse_brcex<list<token<'{'>>, list<token<c>, tokens...>> {
+  using brcex = parse_brcex<list<token<'{'>, number<to_digit<c>::value>>,
                             list<tokens...>>;
   template <typename nested> using type = typename brcex::template type<nested>;
   using unused = typename brcex::unused;
 };
 
 template <std::size_t n, char c, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>>, list<symbol<c>, tokens...>> {
+struct parse_brcex<list<token<'{'>, number<n>>, list<token<c>, tokens...>> {
   using brcex =
-      parse_brcex<list<symbol<'{'>, number<n * 10 + to_digit<c>::value>>,
+      parse_brcex<list<token<'{'>, number<n * 10 + to_digit<c>::value>>,
                   list<tokens...>>;
   template <typename nested> using type = typename brcex::template type<nested>;
   using unused = typename brcex::unused;
 };
 
 template <char c, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<0>>, list<symbol<c>, tokens...>>;
+struct parse_brcex<list<token<'{'>, number<0>>, list<token<c>, tokens...>>;
 
 /**
  * Handle comma character (',')
  */
 template <std::size_t n, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>>, list<symbol<','>, tokens...>> {
+struct parse_brcex<list<token<'{'>, number<n>>, list<token<','>, tokens...>> {
   using brcex =
-      parse_brcex<list<symbol<'{'>, number<n>, symbol<','>>, list<tokens...>>;
+      parse_brcex<list<token<'{'>, number<n>, token<','>>, list<tokens...>>;
   template <typename nested> using type = typename brcex::template type<nested>;
   using unused = typename brcex::unused;
 };
@@ -100,54 +100,53 @@ struct parse_brcex<list<symbol<'{'>, number<n>>, list<symbol<','>, tokens...>> {
  * Handle upper bound number
  */
 template <std::size_t n, char c, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>, symbol<','>>,
-                   list<symbol<c>, tokens...>> {
+struct parse_brcex<list<token<'{'>, number<n>, token<','>>,
+                   list<token<c>, tokens...>> {
   using brcex = parse_brcex<
-      list<symbol<'{'>, number<n>, symbol<','>, number<to_digit<c>::value>>,
+      list<token<'{'>, number<n>, token<','>, number<to_digit<c>::value>>,
       list<tokens...>>;
   template <typename nested> using type = typename brcex::template type<nested>;
   using unused = typename brcex::unused;
 };
 template <std::size_t n, size_t m, char c, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>, symbol<','>, number<m>>,
-                   list<symbol<c>, tokens...>> {
-  using brcex = parse_brcex<list<symbol<'{'>, number<n>, symbol<','>,
+struct parse_brcex<list<token<'{'>, number<n>, token<','>, number<m>>,
+                   list<token<c>, tokens...>> {
+  using brcex = parse_brcex<list<token<'{'>, number<n>, token<','>,
                                  number<m * 10 + to_digit<c>::value>>,
                             list<tokens...>>;
   template <typename nested> using type = typename brcex::template type<nested>;
   using unused = typename brcex::unused;
 };
 template <std::size_t n, char c, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>, symbol<','>, number<0>>,
-                   list<symbol<c>, tokens...>>;
+struct parse_brcex<list<token<'{'>, number<n>, token<','>, number<0>>,
+                   list<token<c>, tokens...>>;
 
 /**
  * Handle cases for closing digraph ('\}')
  */
 template <std::size_t n, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>>,
-                   list<symbol<'\\'>, symbol<'}'>, tokens...>> {
+struct parse_brcex<list<token<'{'>, number<n>>,
+                   list<token<'\\'>, token<'}'>, tokens...>> {
   using brcex =
-      parse_brcex<list<symbol<'{'>, number<n>, symbol<'}'>>, list<tokens...>>;
+      parse_brcex<list<token<'{'>, number<n>, token<'}'>>, list<tokens...>>;
   template <typename nested> using type = typename brcex::template type<nested>;
   using unused = typename brcex::unused;
 };
 
 template <std::size_t n, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>, symbol<','>>,
-                   list<symbol<'\\'>, symbol<'}'>, tokens...>> {
-  using brcex =
-      parse_brcex<list<symbol<'{'>, number<n>, symbol<','>, symbol<'}'>>,
-                  list<tokens...>>;
+struct parse_brcex<list<token<'{'>, number<n>, token<','>>,
+                   list<token<'\\'>, token<'}'>, tokens...>> {
+  using brcex = parse_brcex<list<token<'{'>, number<n>, token<','>, token<'}'>>,
+                            list<tokens...>>;
   template <typename nested> using type = typename brcex::template type<nested>;
   using unused = typename brcex::unused;
 };
 
 template <std::size_t n, std::size_t m, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>, symbol<','>, number<m>>,
-                   list<symbol<'\\'>, symbol<'}'>, tokens...>> {
+struct parse_brcex<list<token<'{'>, number<n>, token<','>, number<m>>,
+                   list<token<'\\'>, token<'}'>, tokens...>> {
   using brcex = parse_brcex<
-      list<symbol<'{'>, number<n>, symbol<','>, number<m>, symbol<'}'>>,
+      list<token<'{'>, number<n>, token<','>, number<m>, token<'}'>>,
       list<tokens...>>;
   template <typename nested> using type = typename brcex::template type<nested>;
   using unused = typename brcex::unused;
@@ -161,13 +160,13 @@ struct parse_brcex<list<symbol<'{'>, number<n>, symbol<','>, number<m>>,
  * Case 1: lower- and upper-bounded repetition '{n,m}'
  */
 template <std::size_t n, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>, symbol<'}'>>, list<tokens...>> {
+struct parse_brcex<list<token<'{'>, number<n>, token<'}'>>, list<tokens...>> {
   template <typename nested> using type = ast::exactly<n, nested>;
   using unused = list<tokens...>;
 };
 
 template <std::size_t n, typename... tokens>
-struct parse_brcex<list<symbol<'{'>, number<n>, symbol<','>, symbol<'}'>>,
+struct parse_brcex<list<token<'{'>, number<n>, token<','>, token<'}'>>,
                    list<tokens...>> {
   template <typename nested> using type = ast::at_least<n, nested>;
   using unused = list<tokens...>;
@@ -175,7 +174,7 @@ struct parse_brcex<list<symbol<'{'>, number<n>, symbol<','>, symbol<'}'>>,
 
 template <std::size_t n, std::size_t m, typename... tokens>
 struct parse_brcex<
-    list<symbol<'{'>, number<n>, symbol<','>, number<m>, symbol<'}'>>,
+    list<token<'{'>, number<n>, token<','>, number<m>, token<'}'>>,
     list<tokens...>> {
   template <typename nested> using type = ast::between<n, m, nested>;
   using unused = list<tokens...>;
@@ -185,7 +184,7 @@ struct parse_brcex<
  * Handle initial open-bracket
  */
 template <typename... tokens>
-struct parse_brkex<list<>, list<symbol<'['>, tokens...>> {
+struct parse_brkex<list<>, list<token<'['>, tokens...>> {
   using brkex = parse_brkex<list<ast::symbol<'['>>, list<tokens...>>;
   using type = typename brkex::type;
   using unused = typename brkex::unused;
@@ -196,7 +195,7 @@ struct parse_brkex<list<>, list<symbol<'['>, tokens...>> {
  */
 template <typename... parts, char c, typename... tokens>
 struct parse_brkex<list<ast::symbol<'['>, parts...>,
-                   list<symbol<c>, tokens...>> {
+                   list<token<c>, tokens...>> {
   using brkex = parse_brkex<list<ast::symbol<'['>, parts..., ast::symbol<c>>,
                             list<tokens...>>;
   using type = typename brkex::type;
@@ -208,7 +207,7 @@ struct parse_brkex<list<ast::symbol<'['>, parts...>,
  */
 template <typename... parts, typename... tokens>
 struct parse_brkex<list<ast::symbol<'['>, parts...>,
-                   list<symbol<']'>, tokens...>> {
+                   list<token<']'>, tokens...>> {
   using type = ast::any_of<parts...>;
   using unused = list<tokens...>;
 };
@@ -217,7 +216,7 @@ struct parse_brkex<list<ast::symbol<'['>, parts...>,
  * Handle immediate close-bracket character
  */
 template <typename... tokens>
-struct parse_brkex<list<ast::symbol<'['>>, list<symbol<']'>, tokens...>> {
+struct parse_brkex<list<ast::symbol<'['>>, list<token<']'>, tokens...>> {
   using brkex =
       parse_brkex<list<ast::symbol<'['>, ast::symbol<']'>>, list<tokens...>>;
   using type = typename brkex::type;
@@ -238,7 +237,7 @@ template <typename ast> struct parse_regex<ast, list<>> { using type = ast; };
  * Handle generic characters
  */
 template <typename... asts, char c, typename... tokens>
-struct parse_regex<ast::sequence<asts...>, list<symbol<c>, tokens...>> {
+struct parse_regex<ast::sequence<asts...>, list<token<c>, tokens...>> {
   using type = typename parse_regex<ast::sequence<asts..., ast::symbol<c>>,
                                     list<tokens...>>::type;
 };
@@ -247,7 +246,7 @@ struct parse_regex<ast::sequence<asts...>, list<symbol<c>, tokens...>> {
  * Handle dot character ('.')
  */
 template <typename... asts, typename... tokens>
-struct parse_regex<ast::sequence<asts...>, list<symbol<'.'>, tokens...>> {
+struct parse_regex<ast::sequence<asts...>, list<token<'.'>, tokens...>> {
   using type = typename parse_regex<ast::sequence<asts..., ast::any>,
                                     list<tokens...>>::type;
 };
@@ -257,7 +256,7 @@ struct parse_regex<ast::sequence<asts...>, list<symbol<'.'>, tokens...>> {
  */
 template <typename... asts, typename... tokens>
 struct parse_regex<ast::sequence<asts...>,
-                   list<symbol<'\\'>, symbol<'.'>, tokens...>> {
+                   list<token<'\\'>, token<'.'>, tokens...>> {
   using type = typename parse_regex<ast::sequence<asts..., ast::symbol<'.'>>,
                                     list<tokens...>>::type;
 };
@@ -267,7 +266,7 @@ struct parse_regex<ast::sequence<asts...>,
  */
 template <typename... asts, typename... tokens>
 struct parse_regex<ast::sequence<asts...>,
-                   list<symbol<'\\'>, symbol<'\\'>, tokens...>> {
+                   list<token<'\\'>, token<'\\'>, tokens...>> {
   using type = typename parse_regex<ast::sequence<asts..., ast::symbol<'\\'>>,
                                     list<tokens...>>::type;
 };
@@ -276,13 +275,13 @@ struct parse_regex<ast::sequence<asts...>,
  * Disallow invalid escape character ('\')
  */
 template <typename ast, typename... tokens>
-struct parse_regex<ast, list<symbol<'\\'>, tokens...>>;
+struct parse_regex<ast, list<token<'\\'>, tokens...>>;
 
 /**
  * Handle asterisk character ('*')
  */
 template <typename... asts, typename... tokens>
-struct parse_regex<ast::sequence<asts...>, list<symbol<'*'>, tokens...>> {
+struct parse_regex<ast::sequence<asts...>, list<token<'*'>, tokens...>> {
   using init_asts = typename init<ast::sequence<asts...>>::type;
   using last_ast = typename last<ast::sequence<asts...>>::type;
   using new_ast = typename ast::zero_or_more<last_ast>;
@@ -294,7 +293,7 @@ struct parse_regex<ast::sequence<asts...>, list<symbol<'*'>, tokens...>> {
  * Handle circumflex character ('^')
  */
 template <typename... tokens>
-struct parse_regex<ast::sequence<>, list<symbol<'^'>, tokens...>> {
+struct parse_regex<ast::sequence<>, list<token<'^'>, tokens...>> {
   using type = typename parse_regex<ast::sequence<ast::left_anchor>,
                                     list<tokens...>>::type;
 };
@@ -304,7 +303,7 @@ struct parse_regex<ast::sequence<>, list<symbol<'^'>, tokens...>> {
  */
 template <typename... asts, typename... tokens>
 struct parse_regex<ast::sequence<asts...>,
-                   list<symbol<'\\'>, symbol<'^'>, tokens...>> {
+                   list<token<'\\'>, token<'^'>, tokens...>> {
   using type = typename parse_regex<ast::sequence<asts..., ast::symbol<'^'>>,
                                     list<tokens...>>::type;
 };
@@ -313,7 +312,7 @@ struct parse_regex<ast::sequence<asts...>,
  * Handle dollar-sign character ('$')
  */
 template <typename... asts>
-struct parse_regex<ast::sequence<asts...>, list<symbol<'$'>>> {
+struct parse_regex<ast::sequence<asts...>, list<token<'$'>>> {
   using type = typename parse_regex<ast::sequence<asts..., ast::right_anchor>,
                                     list<>>::type;
 };
@@ -323,7 +322,7 @@ struct parse_regex<ast::sequence<asts...>, list<symbol<'$'>>> {
  */
 template <typename... asts, typename... tokens>
 struct parse_regex<ast::sequence<asts...>,
-                   list<symbol<'\\'>, symbol<'$'>, tokens...>> {
+                   list<token<'\\'>, token<'$'>, tokens...>> {
   using type = typename parse_regex<ast::sequence<asts..., ast::symbol<'$'>>,
                                     list<tokens...>>::type;
 };
@@ -333,8 +332,8 @@ struct parse_regex<ast::sequence<asts...>,
  */
 template <typename... asts, typename... tokens>
 struct parse_regex<ast::sequence<asts...>,
-                   list<symbol<'\\'>, symbol<'{'>, tokens...>> {
-  using brcex = parse_brcex<list<>, list<symbol<'\\'>, symbol<'{'>, tokens...>>;
+                   list<token<'\\'>, token<'{'>, tokens...>> {
+  using brcex = parse_brcex<list<>, list<token<'\\'>, token<'{'>, tokens...>>;
   using init_asts = typename init<ast::sequence<asts...>>::type;
   using last_ast = typename last<ast::sequence<asts...>>::type;
   using new_ast = typename brcex::template type<last_ast>;
@@ -346,8 +345,8 @@ struct parse_regex<ast::sequence<asts...>,
  * Handle open-bracket character ('[')
  */
 template <typename... asts, typename... tokens>
-struct parse_regex<ast::sequence<asts...>, list<symbol<'['>, tokens...>> {
-  using brkex = parse_brkex<list<>, list<symbol<'['>, tokens...>>;
+struct parse_regex<ast::sequence<asts...>, list<token<'['>, tokens...>> {
+  using brkex = parse_brkex<list<>, list<token<'['>, tokens...>>;
   using type =
       typename parse_regex<ast::sequence<asts..., typename brkex::type>,
                            typename brkex::unused>::type;
@@ -364,7 +363,7 @@ template <typename regex, std::size_t... n>
 struct parse_result<regex, std::index_sequence<n...>> {
   using type =
       typename parse_regex<ast::sequence<>,
-                           list<symbol<regex::string::get(n)>...>>::type;
+                           list<token<regex::string::get(n)>...>>::type;
 };
 
 } // namespace scry
