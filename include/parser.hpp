@@ -22,6 +22,26 @@ template <char lower, char upper> struct range {
   static_assert(lower <= upper, "Invalid range expression");
 };
 
+namespace cc {
+
+using upper = range<'A', 'Z'>;
+using lower = range<'a', 'z'>;
+using alpha = any_of<upper, lower>;
+using digit = range<'0', '9'>;
+using xdigit = any_of<digit, range<'a', 'f'>, range<'A', 'F'>>;
+using alnum = any_of<upper, lower, digit>;
+using punct = any_of<range<0x21, 0x2F>, range<0x3A, 0x40>, range<0x5B, 0x60>,
+                     range<0x7B, 0x7E>>;
+using blank = any_of<symbol<' '>, symbol<'\t'>>;
+using space = any_of<symbol<' '>, symbol<'\t'>, symbol<'\n'>, symbol<'\r'>,
+                     symbol<'\f'>, symbol<'\v'>>;
+using cntrl = range<0x00, 0x1F>;
+using graph = any_of<alnum, punct>;
+using print = any_of<graph, symbol<' '>>;
+using word = any_of<alnum, symbol<'_'>>;
+
+} // namespace cc
+
 } // namespace ast
 
 namespace {
@@ -46,6 +66,82 @@ template <char c> struct token;
 template <std::size_t n> struct number;
 
 /**
+ * Helper struct for transforming character sequences into their respective
+ * character classes
+ */
+template <typename...> struct claex_map;
+
+template <>
+struct claex_map<token<'u'>, token<'p'>, token<'p'>, token<'e'>, token<'r'>> {
+  using type = ast::cc::upper;
+};
+
+template <>
+struct claex_map<token<'l'>, token<'o'>, token<'w'>, token<'e'>, token<'r'>> {
+  using type = ast::cc::lower;
+};
+
+template <>
+struct claex_map<token<'a'>, token<'l'>, token<'p'>, token<'h'>, token<'a'>> {
+  using type = ast::cc::alpha;
+};
+
+template <>
+struct claex_map<token<'d'>, token<'i'>, token<'g'>, token<'i'>, token<'t'>> {
+  using type = ast::cc::digit;
+};
+
+template <>
+struct claex_map<token<'x'>, token<'d'>, token<'i'>, token<'g'>, token<'i'>,
+                 token<'t'>> {
+  using type = ast::cc::xdigit;
+};
+
+template <>
+struct claex_map<token<'a'>, token<'l'>, token<'n'>, token<'u'>, token<'m'>> {
+  using type = ast::cc::alnum;
+};
+
+template <>
+struct claex_map<token<'p'>, token<'u'>, token<'n'>, token<'c'>, token<'t'>> {
+  using type = ast::cc::punct;
+};
+
+template <>
+struct claex_map<token<'b'>, token<'l'>, token<'a'>, token<'n'>, token<'k'>> {
+  using type = ast::cc::blank;
+};
+
+template <>
+struct claex_map<token<'s'>, token<'p'>, token<'a'>, token<'c'>, token<'e'>> {
+  using type = ast::cc::space;
+};
+
+template <>
+struct claex_map<token<'c'>, token<'n'>, token<'t'>, token<'r'>, token<'l'>> {
+  using type = ast::cc::cntrl;
+};
+
+template <>
+struct claex_map<token<'g'>, token<'r'>, token<'a'>, token<'p'>, token<'h'>> {
+  using type = ast::cc::graph;
+};
+
+template <>
+struct claex_map<token<'p'>, token<'r'>, token<'i'>, token<'n'>, token<'t'>> {
+  using type = ast::cc::print;
+};
+
+template <> struct claex_map<token<'w'>, token<'o'>, token<'r'>, token<'d'>> {
+  using type = ast::cc::word;
+};
+
+/**
+ * Structure used for parsing character class expressions
+ */
+template <typename parts, typename tokens> struct parse_ccex;
+
+/**
  * Structure used for parsing brace expressions
  */
 template <typename parts, typename tokens> struct parse_brcex;
@@ -54,6 +150,38 @@ template <typename parts, typename tokens> struct parse_brcex;
  * Structure used for parsing bracket expressions
  */
 template <typename parts, typename tokens> struct parse_brkex;
+
+/**
+ * Handle open-character-class digraph ('[:')
+ */
+template <typename... tokens>
+struct parse_ccex<list<>, list<token<'['>, token<':'>, tokens...>> {
+  using claex = parse_ccex<list<token<'['>, token<':'>>, list<tokens...>>;
+  using type = typename claex::type;
+  using unused = typename claex::unused;
+};
+
+/**
+ * Handle characters
+ */
+template <typename... parts, char c, typename... tokens>
+struct parse_ccex<list<token<'['>, token<':'>, parts...>,
+                  list<token<c>, tokens...>> {
+  using claex = parse_ccex<list<token<'['>, token<':'>, parts..., token<c>>,
+                           list<tokens...>>;
+  using type = typename claex::type;
+  using unused = typename claex::unused;
+};
+
+/**
+ * Handle close-character-class digraph (':]')
+ */
+template <typename... parts, typename... tokens>
+struct parse_ccex<list<token<'['>, token<':'>, parts...>,
+                  list<token<':'>, token<']'>, tokens...>> {
+  using type = typename claex_map<parts...>::type;
+  using unused = list<tokens...>;
+};
 
 /**
  * Handle open-brace digraph ('\{')
@@ -314,6 +442,48 @@ struct parse_brkex<list<ast::symbol<'['>, asts...>,
                    list<token<'-'>, token<']'>, tokens...>> {
   using brkex = parse_brkex<list<ast::symbol<'['>, asts..., ast::symbol<'-'>>,
                             list<token<']'>, tokens...>>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle character class expressions
+ */
+template <typename... asts, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, asts...>,
+                   list<token<'['>, token<':'>, tokens...>> {
+  using claex = parse_ccex<list<>, list<token<'['>, token<':'>, tokens...>>;
+  using brkex =
+      parse_brkex<list<ast::symbol<'['>, asts..., typename claex::type>,
+                  typename claex::unused>;
+  using type = typename brkex::type;
+  using unused = typename brkex::unused;
+};
+
+/**
+ * Handle collating symbol expressions
+ *
+ * Note: The current implementation does not support collating symbols and
+ *       instead reports and error
+ */
+template <typename... asts, char c0, char c1, typename... tokens>
+struct parse_brkex<list<ast::symbol<'['>, asts...>,
+                   list<token<'['>, token<'.'>, token<c0>, token<c1>,
+                        token<'.'>, token<']'>, tokens...>>;
+
+/**
+ * Handle equivalence class expressions
+ *
+ * Note: The current implementation handles equivalence classes as individual
+ *       tokens with extra syntax as locales are not involved
+ */
+template <typename... asts, char c, typename... tokens>
+struct parse_brkex<
+    list<ast::symbol<'['>, asts...>,
+    list<token<'['>, token<'='>, token<c>, token<'='>, token<']'>, tokens...>> {
+
+  using brkex = parse_brkex<list<ast::symbol<'['>, asts..., ast::symbol<c>>,
+                            list<tokens...>>;
   using type = typename brkex::type;
   using unused = typename brkex::unused;
 };
