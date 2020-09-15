@@ -9,9 +9,25 @@ namespace scry {
 namespace op {
 
 /**
- * Structure representing an empty regex and leaf for an ast
+ * Structure containing a sequence of operations which must be accepted in
+ * sequence
  */
-struct noop {
+template <typename... ops> struct accept_sequence;
+
+template <typename head, typename... tail>
+struct accept_sequence<head, tail...> {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    if (auto it = head::execute(begin, end)) {
+      return accept_sequence<tail...>::execute(*it, end);
+    } else {
+      return {};
+    }
+  }
+};
+
+template <> struct accept_sequence<> {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type>
   execute(it_type begin, [[maybe_unused]] it_type end) noexcept {
@@ -22,24 +38,24 @@ struct noop {
 /**
  * Structure representing generic symbols
  */
-template <char c, typename next = noop> struct accept {
+template <char c> struct accept {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
     if (begin != end && *begin == c) {
-      return next::execute(begin + 1, end);
+      return ++begin;
     } else {
       return {};
     }
   }
 };
 
-template <char c, typename next = noop> struct reject {
+template <char c> struct reject {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
     if (begin != end && *begin != c) {
-      return next::execute(begin + 1, end);
+      return ++begin;
     } else {
       return {};
     }
@@ -49,12 +65,12 @@ template <char c, typename next = noop> struct reject {
 /**
  * Structure representing the any character (.)
  */
-template <typename next = noop> struct accept_any {
+struct accept_any {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
     if (begin != end) {
-      return next::execute(begin + 1, end);
+      return ++begin;
     } else {
       return {};
     }
@@ -69,7 +85,7 @@ template <typename next = noop> struct accept_any {
  *       disallowing such a structure from being generated as it may simplify
  *       generated code.
  */
-template <typename nested, typename next = noop> struct accept_zero_or_more {
+template <typename nested, typename next> struct accept_zero_or_more {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
@@ -89,17 +105,58 @@ template <typename nested, typename next = noop> struct accept_zero_or_more {
 };
 
 /**
+ * Specialization of `accept_zero_or_more` for cases where there is not a
+ * next operation
+ */
+template <typename nested>
+struct accept_zero_or_more<nested, op::accept_sequence<>> {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    while (begin != end) {
+      if (auto it = nested::execute(begin, end)) {
+        begin = it;
+      } else {
+        return {};
+      }
+    }
+    return begin;
+  }
+};
+
+/**
+ * Specialization of `accept_zero_or_more` for cases where a single symbol
+ * follows
+ */
+template <typename nested, typename until, typename next> struct accept_until {
+  template <typename it_type>
+  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
+                                                      it_type end) noexcept {
+    while (begin != end) {
+      if (auto it = until::execute(begin, end)) {
+        return next::execute(*it, end);
+      } else if (auto it = nested::execute(begin, end)) {
+        begin = it;
+      } else {
+        return {};
+      }
+    }
+    return begin;
+  }
+};
+
+/**
  * Structure representing the left-anchor (^)
  *
  * TODO: Figure out if this is fine as is, or whether there is some meaningful
  *       code that can be inserted in here. Maybe parameterise execute with a
  *       begin, current, and end iterator?
  */
-template <typename next = noop> struct left_anchor {
+struct left_anchor {
   template <typename it_type>
-  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
-                                                      it_type end) noexcept {
-    return next::execute(begin, end);
+  SCRY_INLINE constexpr static maybe<it_type>
+  execute(it_type begin, [[maybe_unused]] it_type end) noexcept {
+    return begin;
   }
 };
 
@@ -121,8 +178,7 @@ struct right_anchor {
 /**
  * Structure representing the repetition of an AST
  */
-template <std::size_t n, typename nested, typename next = noop>
-struct accept_n {
+template <std::size_t n, typename nested> struct accept_n {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
@@ -133,15 +189,14 @@ struct accept_n {
         return {};
       }
     }
-    return next::execute(begin, end);
+    return begin;
   }
 };
 
 /**
  * Structure representing an upper-bounded repetition of an AST
  */
-template <std::size_t n, typename nested, typename next = noop>
-struct accept_up_to_n {
+template <std::size_t n, typename nested, typename next> struct accept_at_most {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
@@ -163,12 +218,12 @@ struct accept_up_to_n {
 /**
  * Structure representing a range of symbols which may be accepted
  */
-template <char lower, char upper, typename next = noop> struct accept_range {
+template <char lower, char upper> struct accept_range {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
-    if (begin != end && lower <= *begin && *begin <= upper) {
-      return next::execute(begin + 1, end);
+    if (begin != end && ((lower <= *begin) & (*begin <= upper))) {
+      return ++begin;
     } else {
       return {};
     }
@@ -178,64 +233,24 @@ template <char lower, char upper, typename next = noop> struct accept_range {
 /**
  * Structure representing a range of symbols which may be rejected
  */
-template <char lower, char upper, typename next = noop> struct reject_range {
+template <char lower, char upper> struct reject_range {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
-    if (begin != end && (lower > *begin || *begin > upper)) {
-      return next::execute(begin + 1, end);
+    if (begin != end && ((lower > *begin) | (*begin > upper))) {
+      return ++begin;
     } else {
       return {};
     }
   }
 };
 
-template <typename nested, typename next = noop> struct op_if {
+template <typename nested> struct op_if {
   template <typename it_type>
   SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
                                                       it_type end) noexcept {
-    if (auto it = nested::execute(begin, end)) {
-      return next::execute(*it, end);
-    } else {
-      return {};
-    }
-  }
-};
-
-template <typename left, typename right> struct op_or {
-  template <typename it_type>
-  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
-                                                      it_type end) noexcept {
-    auto left_it = left::execute(begin, end);
-    auto right_it = right::execute(begin, end);
-    if (left_it && right_it) {
-      if (left_it > right_it) {
-        return left_it;
-      } else {
-        return right_it;
-      }
-    } else if (left_it) {
-      return left_it;
-    } else if (right_it) {
-      return right_it;
-    } else {
-      return {};
-    }
-  }
-};
-
-template <typename left, typename right> struct op_and {
-  template <typename it_type>
-  SCRY_INLINE constexpr static maybe<it_type> execute(it_type begin,
-                                                      it_type end) noexcept {
-    auto left_it = left::execute(begin, end);
-    auto right_it = right::execute(begin, end);
-    if (left_it && right_it) {
-      if (left_it > right_it) {
-        return left_it;
-      } else {
-        return right_it;
-      }
+    if (begin != end && nested::execute(*begin)) {
+      return ++begin;
     } else {
       return {};
     }
@@ -244,165 +259,152 @@ template <typename left, typename right> struct op_and {
 
 } // namespace op
 
+namespace pred {
+
+template <char c0> struct equals {
+  SCRY_INLINE constexpr static bool execute(char c1) noexcept {
+    return c0 == c1;
+  }
+};
+
+template <char lower, char upper> struct in_range {
+  SCRY_INLINE constexpr static bool execute(char c) noexcept {
+    return (lower <= c) & (c <= upper);
+  }
+};
+
+template <typename nested> struct negate {
+  SCRY_INLINE constexpr static bool execute(char c) noexcept {
+    return !nested::execute(c);
+  }
+};
+
+template <typename left, typename right> struct left_or_right {
+  SCRY_INLINE constexpr static bool execute(char c) noexcept {
+    return left::execute(c) | right::execute(c);
+  }
+};
+
+template <typename left, typename right> struct left_and_right {
+  SCRY_INLINE constexpr static bool execute(char c) noexcept {
+    return left::execute(c) & right::execute(c);
+  }
+};
+
+} // namespace pred
+
 namespace {
 
-template <typename op> struct negate;
+template <typename op, typename ast> struct generate_ops;
 
-template <> struct negate<op::noop> { using type = op::noop; };
+template <typename ast> struct generate_op;
 
-template <char c, typename next> struct negate<op::accept<c, next>> {
-  using type = op::reject<c, next>;
+template <typename ast> struct generate_pred;
+
+template <typename op> struct generate_ops<op, ast::sequence<>> {
+  using type = op;
 };
 
-template <char c, typename next> struct negate<op::reject<c, next>> {
-  using type = op::accept<c, next>;
+template <typename... ops, typename head, typename... tail>
+struct generate_ops<op::accept_sequence<ops...>, ast::sequence<head, tail...>> {
+  using type = typename generate_ops<
+      op::accept_sequence<ops..., typename generate_op<head>::type>,
+      ast::sequence<tail...>>::type;
 };
 
-template <char lower, char upper, typename next>
-struct negate<op::accept_range<lower, upper, next>> {
-  using type = op::reject_range<lower, upper, next>;
-};
-
-template <char lower, char upper, typename next>
-struct negate<op::reject_range<lower, upper, next>> {
-  using type = op::accept_range<lower, upper, next>;
-};
-
-template <typename ast> struct generate_code;
-
-template <> struct generate_code<ast::sequence<>> { using type = op::noop; };
-
-template <char c, typename... asts>
-struct generate_code<ast::sequence<ast::symbol<c>, asts...>> {
+template <typename... ops, typename nested, typename... asts>
+struct generate_ops<op::accept_sequence<ops...>,
+                    ast::sequence<ast::zero_or_more<nested>, asts...>> {
+  using nested_op = typename generate_op<nested>::type;
+  using next_op = typename generate_ops<op::accept_sequence<>,
+                                        ast::sequence<asts...>>::type;
   using type =
-      typename op::accept<c,
-                          typename generate_code<ast::sequence<asts...>>::type>;
+      op::accept_sequence<ops...,
+                          typename op::accept_zero_or_more<nested_op, next_op>>;
 };
 
-template <typename... asts>
-struct generate_code<ast::sequence<ast::any, asts...>> {
-  using type = typename op::accept_any<
-      typename generate_code<ast::sequence<asts...>>::type>;
+template <typename... ops, std::size_t n, typename nested, typename... asts>
+struct generate_ops<op::accept_sequence<ops...>,
+                    ast::sequence<ast::at_least<n, nested>, asts...>> {
+  using nested_op = typename generate_op<nested>::type;
+  using next_op = typename generate_ops<op::accept_sequence<>,
+                                        ast::sequence<asts...>>::type;
+  using type =
+      typename op::accept_sequence<ops..., op::accept_n<n, nested_op>,
+                                   op::accept_zero_or_more<nested_op, next_op>>;
 };
 
-template <typename nested, typename... asts>
-struct generate_code<ast::sequence<ast::zero_or_more<nested>, asts...>> {
-  using type = typename op::accept_zero_or_more<
-      typename generate_code<nested>::type,
-      typename generate_code<ast::sequence<asts...>>::type>;
+template <typename... ops, std::size_t n, typename nested, typename... asts>
+struct generate_ops<op::accept_sequence<ops...>,
+                    ast::sequence<ast::at_most<n, nested>, asts...>> {
+  using nested_op = typename generate_op<nested>::type;
+  using next_op = typename generate_ops<op::accept_sequence<>,
+                                        ast::sequence<asts...>>::type;
+  using type =
+      typename op::accept_sequence<ops...,
+                                   op::accept_at_most<n, nested_op, next_op>>;
 };
 
-template <typename... asts>
-struct generate_code<ast::sequence<ast::left_anchor, asts...>> {
-  using type = typename op::left_anchor<
-      typename generate_code<ast::sequence<asts...>>::type>;
-};
-
-template <> struct generate_code<ast::sequence<ast::right_anchor>> {
-  using type = op::right_anchor;
-};
-
-template <std::size_t n, typename nested, typename... asts>
-struct generate_code<ast::sequence<ast::exactly<n, nested>, asts...>> {
-  using type = typename op::accept_n<
-      n, typename generate_code<nested>::type,
-      typename generate_code<ast::sequence<asts...>>::type>;
-};
-
-template <std::size_t n, typename nested, typename... asts>
-struct generate_code<ast::sequence<ast::at_least<n, nested>, asts...>> {
-  using type = typename op::accept_n<
-      n, typename generate_code<nested>::type,
-      op::accept_zero_or_more<
-          typename generate_code<nested>::type,
-          typename generate_code<ast::sequence<asts...>>::type>>;
-};
-
-template <std::size_t n, std::size_t m, typename nested, typename... asts>
-struct generate_code<ast::sequence<ast::between<n, m, nested>, asts...>> {
-  using type = typename op::accept_n<
-      n, typename generate_code<nested>::type,
-      op::accept_up_to_n<m - n, typename generate_code<nested>::type,
-                         typename generate_code<ast::sequence<asts...>>::type>>;
-};
-
-template <typename... nested, typename... asts>
-struct generate_code<ast::sequence<ast::any_of<nested...>, asts...>> {
-  using type = op::op_if<typename generate_code<ast::any_of<nested...>>::type,
-                         typename generate_code<ast::sequence<asts...>>::type>;
-};
-
-template <char c> struct generate_code<ast::symbol<c>> {
+template <char c> struct generate_op<ast::symbol<c>> {
   using type = typename op::accept<c>;
 };
 
-template <> struct generate_code<ast::any> {
-  using type = typename op::accept_any<>;
+template <> struct generate_op<ast::any> { using type = op::accept_any; };
+
+template <> struct generate_op<ast::left_anchor> {
+  using type = op::left_anchor;
 };
 
-template <typename nested> struct generate_code<ast::zero_or_more<nested>> {
-  using type =
-      typename op::accept_zero_or_more<typename generate_code<nested>::type>;
-};
-
-template <> struct generate_code<ast::left_anchor> {
-  using type = typename op::left_anchor<>;
-};
-
-template <> struct generate_code<ast::right_anchor> {
+template <> struct generate_op<ast::right_anchor> {
   using type = op::right_anchor;
 };
 
 template <std::size_t n, typename nested>
-struct generate_code<ast::exactly<n, nested>> {
-  using type = typename op::accept_n<n, typename generate_code<nested>::type>;
+struct generate_op<ast::exactly<n, nested>> {
+  using type = typename op::accept_n<n, typename generate_op<nested>::type>;
 };
 
-template <std::size_t n, typename nested>
-struct generate_code<ast::at_least<n, nested>> {
-  using type = typename op::accept_n<
-      n, typename generate_code<nested>::type,
-      op::accept_zero_or_more<typename generate_code<nested>::type>>;
-};
-
-template <std::size_t n, std::size_t m, typename nested>
-struct generate_code<ast::between<n, m, nested>> {
-  using type = typename op::accept_n<
-      n, typename generate_code<nested>::type,
-      op::accept_up_to_n<m - n, typename generate_code<nested>::type>>;
-};
-
-template <char lower, char upper>
-struct generate_code<ast::range<lower, upper>> {
+template <char lower, char upper> struct generate_op<ast::range<lower, upper>> {
   using type = op::accept_range<lower, upper>;
 };
 
-template <typename nested> struct generate_code<ast::any_of<nested>> {
-  using type = typename generate_code<nested>::type;
+template <typename... nested> struct generate_op<ast::any_of<nested...>> {
+  using type = op::op_if<typename generate_pred<ast::any_of<nested...>>::type>;
+};
+
+template <typename... nested> struct generate_op<ast::none_of<nested...>> {
+  using type = op::op_if<typename generate_pred<ast::none_of<nested...>>::type>;
+};
+
+template <char c> struct generate_pred<ast::symbol<c>> {
+  using type = pred::equals<c>;
+};
+
+template <char lower, char upper>
+struct generate_pred<ast::range<lower, upper>> {
+  using type = pred::in_range<lower, upper>;
 };
 
 template <typename head, typename... tail>
-struct generate_code<ast::any_of<head, tail...>> {
-  using left = typename generate_code<head>::type;
-  using right = typename generate_code<ast::any_of<tail...>>::type;
-  using type = op::op_or<left, right>;
+struct generate_pred<ast::any_of<head, tail...>> {
+  using left = typename generate_pred<head>::type;
+  using right = typename generate_pred<ast::any_of<tail...>>::type;
+  using type = pred::left_or_right<left, right>;
 };
 
-template <typename nested> struct generate_code<ast::none_of<nested>> {
-  using type = typename negate<typename generate_code<nested>::type>::type;
+template <typename head> struct generate_pred<ast::any_of<head>> {
+  using type = typename generate_pred<head>::type;
 };
 
-template <typename head, typename... tail>
-struct generate_code<ast::none_of<head, tail...>> {
-  using left = typename negate<typename generate_code<head>::type>::type;
-  using right = typename generate_code<ast::none_of<tail...>>::type;
-  using type = op::op_and<left, right>;
+template <typename... nested> struct generate_pred<ast::none_of<nested...>> {
+  using type = typename pred::negate<
+      typename generate_pred<ast::any_of<nested...>>::type>;
 };
 
 } // anonymous namespace
 
 template <typename ast> struct codegen_result {
-  using type = typename generate_code<ast>::type;
+  using type = typename generate_ops<op::accept_sequence<>, ast>::type;
 };
 
 } // namespace scry

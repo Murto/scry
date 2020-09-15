@@ -15,7 +15,7 @@ struct left_anchor;
 struct right_anchor;
 template <std::size_t n, typename nested> struct exactly;
 template <std::size_t n, typename nested> struct at_least;
-template <std::size_t n, std::size_t m, typename nested> struct between;
+template <std::size_t n, typename nested> struct at_most;
 template <typename...> struct any_of;
 template <typename...> struct none_of;
 template <char lower, char upper> struct range {
@@ -307,7 +307,9 @@ template <std::size_t n, std::size_t m, typename... tokens>
 struct parse_brcex<
     list<token<'{'>, number<n>, token<','>, number<m>, token<'}'>>,
     list<tokens...>> {
-  template <typename nested> using type = ast::between<n, m, nested>;
+  template <typename nested>
+  using type =
+      ast::sequence<ast::exactly<n, nested>, ast::at_most<m - n, nested>>;
   using unused = list<tokens...>;
 };
 

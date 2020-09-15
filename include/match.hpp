@@ -2,6 +2,7 @@
 
 #include "codegen.hpp"
 #include "ct_string.hpp"
+#include "optimise.hpp"
 #include "parser.hpp"
 #include "regex.hpp"
 
@@ -33,7 +34,8 @@ template <typename regex, typename it_type>
 bool regex_match(it_type begin, it_type end) noexcept {
   using tree = typename parse_result<
       regex, std::make_index_sequence<regex::string::size>>::type;
-  using code = typename codegen_result<tree>::type;
+  using opt_tree = typename optimise_result<tree>::type;
+  using code = typename codegen_result<opt_tree>::type;
   return code::execute(begin, end) == end;
 }
 
