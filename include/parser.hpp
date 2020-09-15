@@ -1,6 +1,8 @@
 #pragma once
 
 #include "definitions.hpp"
+#include "regex.hpp"
+#include "traits.hpp"
 #include "util.hpp"
 
 namespace scry {
@@ -655,11 +657,20 @@ struct parse_regex<ast::sequence<asts...>, list<token<'['>, tokens...>> {
  */
 template <typename regex, typename sequence> struct parse_result;
 
-template <typename regex, std::size_t... n>
-struct parse_result<regex, std::index_sequence<n...>> {
-  using type =
-      typename parse_regex<ast::sequence<>,
-                           list<token<regex::string::get(n)>...>>::type;
+template <const char *cs, const trait_type traits, std::size_t... n>
+struct parse_result<regex<cs, traits>, std::index_sequence<n...>> {
+
+  // Validate traits
+  constexpr static const trait_type all_grammars =
+      trait::ECMAScript | trait::basic | trait::extended | trait::awk |
+      trait::grep | trait::egrep;
+  constexpr static const trait_type grammar = traits & all_grammars;
+  static_assert(grammar == trait::ECMAScript || grammar == trait::basic ||
+                grammar == trait::extended || grammar == trait::awk ||
+                grammar == trait::grep || grammar == trait::egrep);
+
+  using type = typename parse_regex<
+      ast::sequence<>, list<token<regex<cs, traits>::string::get(n)>...>>::type;
 };
 
 } // namespace scry
